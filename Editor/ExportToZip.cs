@@ -2,10 +2,12 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using System;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 /// <summary>
 /// ExportToZip allows to easily export an entire Unity project to a Zip file, directly in the project folder. 
@@ -17,104 +19,168 @@ using System.Linq;
 /// </summary>
 public class ExportToZip : EditorWindow
 {
-    bool isExpertMode = false; //In expert mode, user can enter prefix, suffix, and separator for the project name.
-    string prefix = "ID"; //The prefix for the project name.
-    string projectName = "--"; //The project name. The default value "--" will be replaced with the folder name. 
-    string suffix = "V1"; //The suffix for the project name.
-    string sep = "_"; //The separator to be used between the prefix, project name, and suffix.
-    string version = "CC0 - TIM CSTJ 0.81 (2022-12)"; //The version of the ExportToZip class.
+    int processStep = 1;
+    bool shouldCheckForUnsavedFiles = true;
+    bool shouldAddTime = true;
+    GUIStyle styleForDetails;
+    GUIStyle styleForVersion;
+    string projectName; //The project name. 
+    string projectPath; //The path to the root folder of the project.
+    string projectFolderName; //The name of the root folder of the project (will be used within the zip archive).
+    string dateTimeString; //A string with the date and time of the export.
+    string zipFullPath; //The full path of the file to create or replace.
+    string zipName; //The name of the zip file to create or replace (with the extension).
+    List<string> filesToZip;
+    string version = "CC0 - TIM CSTJ 0.82 (2023-01)"; //The version of the ExportToZip class.
 
-    [MenuItem("File/Export to zip...", false, 199)] //Add an item in the file menu to call ShowWindow
+    [MenuItem("File/Export to zip...", false, 199)] //Add an item in the file menu to call ShowWindow (will be under Save project )
     /// <summary>
     /// Creates a new window of type "ExportToZip" and sets its title and size.
     /// </summary>
     public static void ShowWindow()
     {
-        EditorWindow window = GetWindow<ExportToZip>(true, "Export to zip");
+        EditorWindow window = GetWindow<ExportToZip>(true, "Export project to zip");
         window.minSize = new Vector2(400, 200);
         window.maxSize = new Vector2(600, 300);
     }
 
+    void OnInspectorUpdate()
+    {
+        Repaint();
+    }
+
     /// <summary>
     /// GUI event called whenever the GUI is rendered.
+    /// The processStep counter is used to give feedback to the user
+    /// (it allows OnGUI to be called more than once during the process).
     /// </summary>
     void OnGUI()
     {
-        string projectPath = System.IO.Directory.GetCurrentDirectory();
-        string projectFolderName = System.IO.Path.GetFileName(projectPath);
-        if (projectName == "--") { projectName = projectFolderName; }
+        if (processStep == 1) DefineStyles();
 
-        //styles definitions:
-        GUIStyle styleForDetails = new GUIStyle();
-        styleForDetails.fontSize = 10;
-        styleForDetails.normal.textColor = Color.gray;
-        styleForDetails.margin = new RectOffset(5, 0, 0, 0);
-        GUIStyle styleForButton = new GUIStyle(GUI.skin.button);
-        styleForButton.fontStyle = FontStyle.Bold;
-        styleForDetails.normal.textColor = Color.yellow;
-
-        GUILayout.Label("This tool will export the entire project to a Zip file, \ndirectly in the project folder.", EditorStyles.boldLabel);
+        GUILayout.Label("This tool will export the entire project to a Zip file.", EditorStyles.boldLabel);
         GUILayout.Label("(Excluded files : *.zip, .git, Library, Logs, Temp.)", styleForDetails);
-        isExpertMode = EditorGUILayout.Toggle("Use prefix and suffix?", isExpertMode);
-        if (isExpertMode) prefix = EditorGUILayout.TextField("Project name prefix", prefix);
-        projectName = EditorGUILayout.TextField("Project name", projectName);
-        string zipName = projectName + ".zip";
-        if (isExpertMode)
+
+        string processName;
+        switch (processStep)
         {
-            suffix = EditorGUILayout.TextField("Project name suffix", suffix);
-            sep = EditorGUILayout.TextField("Separator to use", sep);
-            zipName = ((prefix != "") ? prefix + sep : "") + projectName + ((suffix != "") ? sep + suffix : "") + ".zip";
+            case 1: processName = "Initialising"; break;
+            case 2:
+            case 3: processName = "Checking project state"; break;
+            case 4:
+            case 5: processName = "Waiting for zip filename"; break;
+            case 6:
+            case 7: processName = "Checking filename validity"; break;
+            case 8:
+            case 9: processName = "Listing files to add"; break;
+            case 10:
+            default: processName = "Adding files to the archive"; break;
         }
 
-        string zipFullPath = Path.Combine(projectPath, zipName);
-        bool zipAlreadyExists = File.Exists(zipFullPath);
+        GUILayout.Label($"{processName} ({processStep})", styleForVersion);
 
-        if (zipAlreadyExists)
+        GUILayout.Label(version, styleForVersion);
+
+        if (processStep == 3) //checking and saving unsaved files
         {
-            GUILayout.Label($"Warning: A file named \"{zipName}\" already exist.", styleForDetails);
-        }
-        else if (projectName == "")
-        {
-            GUILayout.Label($"Warning: The project name cannot be empty.", styleForDetails);
-        }
-        else
-        {
-            styleForDetails.normal.textColor = Color.white;
-            GUILayout.Label($"A file named \"{zipName}\" will be created.", styleForDetails);
+            projectPath = System.IO.Directory.GetCurrentDirectory();
+            projectFolderName = System.IO.Path.GetFileName(projectPath);
+            projectName = projectFolderName;
+
+            if (shouldCheckForUnsavedFiles)
+            {
+                bool shouldContinue = CheckForUnsavedFiles();
+                if (!shouldContinue)
+                {
+                    ShowError("The project has not been exported.");
+                    Close();
+                    return;
+                }
+            }
         }
 
-        if (GUILayout.Button("Export the project to zip", styleForButton))
+
+        if (processStep == 5) //choosing zip name and path
         {
-            if (CheckIfProjectNameIsEmpty(projectName)) { return; }
-            if (CheckIfProjectNeedsToBeSaved()) //at least one asset needs to be saved
+            zipName = projectName + ".zip";
+            // if (shouldAddTime)
+            // {
+            //     string sep = "_"; 
+            //     CultureInfo cultureInfo = CultureInfo.CurrentCulture;
+            //     dateTimeString = DateTime.Now.ToString("G", cultureInfo).Replace(" ", sep);
+            //     char[] invalidChars = Path.GetInvalidFileNameChars();
+            //     string validDateTimeString = string.Join(sep, dateTimeString.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+            //     zipName = (projectName + sep + validDateTimeString) + ".zip";
+            // }
+            zipFullPath = EditorUtility.SaveFilePanel("Export project to zip", projectPath, zipName, "zip");
+            if (zipFullPath == "")
             {
-                bool shouldContinue = SaveProjectIfDesired();
-                if (!shouldContinue) return;
+                ShowError("The project has not been exported.");
+                Close();
+                return;
             }
-            if (EditorSceneManager.GetActiveScene().isDirty) //the scene needs to be saved
+            zipName = Path.GetFileName(zipFullPath);
+        }
+
+        if (processStep == 7) //managing existing zip file
+        {
+            bool shouldContinue = DeleteExistingZip();
+            if (!shouldContinue)
             {
-                bool shouldContinue = SaveSceneIfDesired();
-                if (!shouldContinue) return;
+                ShowError("The project has not been exported.");
+                Close();
+                return;
             }
-            if (zipAlreadyExists)
-            {
-                bool shouldContinue = ReplaceZipIfUserAccepts(zipName, zipFullPath);
-                if (!shouldContinue) return;
-            }
+        }
+
+        if (processStep == 9) //finding files to add
+        {
             List<string> exceptionList = new List<string>() { Path.Combine(projectPath, ".git"), Path.Combine(projectPath, "Library"), Path.Combine(projectPath, "Logs"), Path.Combine(projectPath, "Temp") };
             string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
             foreach (string file in topLevelFiles) { if (Path.GetExtension(file) == ".zip") { exceptionList.Add(file); } }
-            List<string> fileList = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
+            filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
             string lastSceneFullPath = Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt");
-            if (File.Exists(lastSceneFullPath)) { fileList.Add(lastSceneFullPath); }
+            if (File.Exists(lastSceneFullPath)) { filesToZip.Add(lastSceneFullPath); }
+        }
 
-            using (ZipArchive zip = ZipFile.Open(zipName, ZipArchiveMode.Create))
+        if (processStep == 11) //adding files to the archive
+        {
+            using (ZipArchive zip = ZipFile.Open(zipFullPath, ZipArchiveMode.Create))
             {
-                AddFilesToZipFile(zip, fileList, projectPath, projectFolderName, zipName);
+                AddFilesToZipFile(zip, filesToZip);
             }
         }
+
+        processStep++;
+    }
+
+    private void DefineStyles()
+    {
+        //styles definitions:
+        styleForDetails = new GUIStyle();
+        styleForDetails.fontSize = 10;
         styleForDetails.normal.textColor = Color.gray;
-        GUILayout.Label(version, styleForDetails);
+        styleForDetails.margin = new RectOffset(5, 0, 0, 0);
+        styleForDetails.normal.textColor = Color.yellow;
+        styleForVersion = new GUIStyle(styleForDetails);
+        styleForVersion.normal.textColor = Color.gray;
+    }
+
+    private bool CheckForUnsavedFiles()
+    {
+        if (CheckIfProjectNameIsEmpty()) { return false; }
+        if (CheckIfProjectNeedsToBeSaved()) //at least one asset needs to be saved
+        {
+            bool shouldContinue = SaveProjectIfDesired();
+            if (!shouldContinue) return false;
+        }
+        if (EditorSceneManager.GetActiveScene().isDirty) //the scene needs to be saved
+        {
+            bool shouldContinue = SaveSceneIfDesired();
+            if (!shouldContinue) return false;
+        }
+        shouldCheckForUnsavedFiles = false; //this should be checked only once
+        return true;
     }
 
     /// <summary>
@@ -122,14 +188,14 @@ public class ExportToZip : EditorWindow
     /// </summary>
     /// <param name="zip">The zip archive to add the files to.</param>
     /// <param name="fileList">The list of files to add to the zip archive.</param>
-    /// <param name="projectPath">The path to the root folder of the project.</param>
-    /// <param name="projectFolderName">The name of the root folder of the project within the zip archive.</param>
-    /// <param name="zipName">The name of the zip file (with the extension).</param>
-    private void AddFilesToZipFile(ZipArchive zip, List<string> fileList, string projectPath, string projectFolderName, string zipName)
+    private void AddFilesToZipFile(ZipArchive zip, List<string> fileList)
     {
-        foreach (string file in fileList)
+        int fileCount = fileList.Count();
+        for (int i = 0; i < fileCount; i++)
         {
+            string file = fileList[i];
             string fileRelativePath = Path.GetRelativePath(projectPath, file);
+            EditorUtility.DisplayProgressBar("Compressing files", $"Zipping file {i + 1} of {fileCount}...\n{fileRelativePath}", (i + 1) / fileCount);
             try
             {
                 zip.CreateEntryFromFile(file, Path.Combine(projectFolderName, fileRelativePath));
@@ -144,7 +210,28 @@ public class ExportToZip : EditorWindow
                 ShowError($"An unknown error occurred: {exception.Message}\nThe project was not exported.");
                 return;
             }
+            Thread.Sleep(1);
         }
+        EditorUtility.ClearProgressBar();
+
+        // foreach (string file in fileList)
+        // {
+        //     string fileRelativePath = Path.GetRelativePath(projectPath, file);
+        //     try
+        //     {
+        //         zip.CreateEntryFromFile(file, Path.Combine(projectFolderName, fileRelativePath));
+        //     }
+        //     catch (IOException exception)
+        //     {
+        //         ShowError($"An error occurred while adding the file to the zip archive: {exception.Message}\nThe project was not exported.");
+        //         return;
+        //     }
+        //     catch (Exception exception)
+        //     {
+        //         ShowError($"An unknown error occurred: {exception.Message}\nThe project was not exported.");
+        //         return;
+        //     }
+        // }
 
         EditorUtility.DisplayDialog("SUCCESS", $"EXCELLENT!\nThe project was exported correctly in the {zipName} file.\n(The archive contains {fileList.Count()} files.)", "Ok");
         Close(); //close the window
@@ -174,9 +261,8 @@ public class ExportToZip : EditorWindow
     /// <summary>
     /// Check if the project name is empty.
     /// </summary>
-    /// <param name="projectName">The project name to check.</param>
     /// <returns>True if the project name is empty, false otherwise.</returns>
-    private bool CheckIfProjectNameIsEmpty(string projectName)
+    private bool CheckIfProjectNameIsEmpty()
     {
         if (projectName == "")
         {
@@ -187,18 +273,17 @@ public class ExportToZip : EditorWindow
     }
 
     /// <summary>
-    /// Prompts the user to replace the zip file if it already exists, and replaces it if desired.
+    /// Delete the zip file if it already exists.
     /// </summary>
-    /// <param name="zipName">The name of the zip file (with the extension).</param>
-    /// <param name="zipFullPath">The full path of the file to replace.</param>
-    /// <returns>Returns true if the file was replaced or if the user chose not to replace it, or false if an error occurred while trying to delete the file.</returns>
-    private bool ReplaceZipIfUserAccepts(string zipName, string zipFullPath)
+    /// <returns>Returns true if the file was replaced or false if an error occurred while trying to delete the file.</returns>
+    private bool DeleteExistingZip()
     {
-        if (EditorUtility.DisplayDialog("Warning", $"The file {zipName} already exists. Do you want to replace it?", "Yes", "No"))
+        if (File.Exists(zipFullPath))
         {
+            //note: if the file exists, the user has already given his ok to replace it
             try
             {
-                File.Delete(zipFullPath);
+                File.Delete(zipFullPath); //Delete the file (maybe it should be temporarily renamed and deleted at the end)
             }
             catch (IOException exception)
             {
@@ -215,13 +300,8 @@ public class ExportToZip : EditorWindow
                 ShowError($"An unknown error occurred: {exception.Message}\nThe project was not exported.");
                 return false;
             }
-            return true;
         }
-        else
-        {
-            ShowError("The project was not exported.");
-            return false;
-        }
+        return true;
     }
 
     /// <summary>

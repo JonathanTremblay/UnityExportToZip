@@ -26,7 +26,7 @@ Tested on Mac and Windows with Unity version 2022.1.11
 
 ### Know issues
 
-* If the project contains a lot of big files, it can be unresponsive for a long time (a future version should give more feedback).
+* If the project contains large files, processing them may make execution slower.
 
 
 ## Contact
@@ -42,6 +42,8 @@ Project Link: https://github.com/JonathanTremblay/UnityExportToZip
 
 * 0.82
     * First public version
+* 0.83
+    * Improved user feedback. Simplified user interface (filename is now chosen with a standard Save As dialog).
 
 ## License
 
