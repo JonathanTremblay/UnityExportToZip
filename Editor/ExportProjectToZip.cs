@@ -13,7 +13,7 @@ namespace ClassName
     /// <summary>
     /// ExportProjectToZip allows to easily export an entire Unity project to a Zip file. 
     /// The script will exclude all zip files at the top level of the project. 
-    /// It will also exclude the following folders: .git, Library, Logs, Temp.
+    /// It will also exclude the following folders: .git, Library, Logs, Obj, Temp.
     /// An exception to excluding the Library folder is the LastSceneManagerSetup.txt file, 
     /// which is included to allow Unity to remember and load the last accessed scene.
     /// Note that other Library files can be recreated by Unity.
@@ -28,10 +28,13 @@ namespace ClassName
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static string currentVersion = "Version 1.0.0 (2023-01)";
+        static string currentVersion = "Version 1.0.1 (2023-04)";
+        static bool shouldNameRootLevelFolderWithZipName = true; //Change this flag to false if you wish to keep the original project name.
+        static bool shouldExcludeBuilds = false; //Change this flag to true if you wish to exclude "Build" or "Builds" folders.
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
         static string zipName; //The name of the zip file to create or replace (with the extension).
+        static string zipNameWithoutExt; //The name of the zip file (without the extension).
         static string zipFullPath; //The full path of the zip file to create (with the filename and the extension).
         static string oldZipFullPath; //The temporary full path of the old zip file to replace.
         static List<string> filesToZip; //The list of all the files to zip in the project folder.
@@ -61,6 +64,7 @@ namespace ClassName
                 return;
             }
             zipName = Path.GetFileName(zipFullPath);
+            zipNameWithoutExt = Path.GetFileNameWithoutExtension(zipFullPath);
 
             //temporarily renaming existing zip file
             shouldContinue = RenameExistingZip();
@@ -71,9 +75,10 @@ namespace ClassName
             }
 
             //finding files to add
-            List<string> exceptionList = new List<string>() { Path.Combine(projectPath, ".git"), Path.Combine(projectPath, "Library"), Path.Combine(projectPath, "Logs"), Path.Combine(projectPath, "Temp") };
+            List<string> exceptionList = new List<string>() { Path.Combine(projectPath, ".git"), Path.Combine(projectPath, "Library"), Path.Combine(projectPath, "Logs"), Path.Combine(projectPath, "obj"), Path.Combine(projectPath, "Obj"), Path.Combine(projectPath, "Temp") };
+            if (shouldExcludeBuilds) { exceptionList.Add(Path.Combine(projectPath, "Build")); exceptionList.Add(Path.Combine(projectPath, "Builds")); }
             string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
-            foreach (string file in topLevelFiles) { if (Path.GetExtension(file) == ".zip") { exceptionList.Add(file); } }
+            foreach (string file in topLevelFiles) { if (Path.GetExtension(file) == ".sln" || Path.GetExtension(file) == ".zip") { exceptionList.Add(file); } } //excludes .sln and .zip
             filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
             string lastSceneFullPath = Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt");
             if (File.Exists(lastSceneFullPath)) { filesToZip.Add(lastSceneFullPath); }
@@ -203,7 +208,8 @@ namespace ClassName
                 }
                 try
                 {
-                    string combinedPath = Path.Combine(projectName, fileRelativePath);
+                    string folderName = (shouldNameRootLevelFolderWithZipName) ? zipNameWithoutExt : projectName;
+                    string combinedPath = Path.Combine(folderName, fileRelativePath);
                     combinedPath = FixPathForMac(combinedPath);
                     zip.CreateEntryFromFile(file, combinedPath);
                 }
@@ -370,8 +376,8 @@ namespace ClassName
         }
 
         /// <summary>
-        /// Replaces the directory separator (/ on Windows) 
-        /// with the alternate directory separator (\ on both platform),
+        /// Replaces the directory separator (\ on Windows) 
+        /// with the alternate directory separator (/ on both platform),
         /// which works for Windows and Mac.
         /// </summary>
         /// <param name="path">The path to fix.</param>

@@ -34,7 +34,7 @@ That's it!
 * Compatible with both Mac and Windows
 * No additional software needed
 
-\* Excludes all zip files at the top level of the project, and also excludes the following folders: .git, Library, Logs, Temp. An exception to excluding the Library folder is the LastSceneManagerSetup.txt file, which is included to allow Unity to remember and load the last accessed scene when the project is reopened. Note that other Library files can be recreated by Unity.
+\* Excludes all zip files at the top level of the project, and also excludes the following folders: .git, Library, Logs, Obj, Temp. An exception to excluding the Library folder is the LastSceneManagerSetup.txt file, which is included to allow Unity to remember and load the last accessed scene when the project is reopened. Note that other Library files can be recreated by Unity.
 
 ## Compatibility
 
@@ -64,6 +64,15 @@ Project Link: https://github.com/JonathanTremblay/UnityExportToZip
 
 ## Version History
 
+* 1.0.1
+    * Minor changes to folder naming and exclusions.
+    * Changed the default folder name inside the archive to use the archive name.
+	* Added an option flag at the beginning the code to keep the original project name. 
+	* Added an option flag to exclude Build/Builds folders. 
+	* Added Obj to folder exclusions.
+	* Added .sln to file exclusions.
+	* Project reorganized to Packages folder standards.
+	* Package can now be installed from git repository.
 * 1.0.0
     * Revised readme. Added a namespace. Improved Mac compatibility.
 * 0.84
