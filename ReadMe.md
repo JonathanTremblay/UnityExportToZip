@@ -60,10 +60,13 @@ I hope this script helps you to improve your workflow and make it more efficient
 Teacher, Cegep de Saint-Jerome  
 jtrembla@cstj.qc.ca
 
-Project Link: https://github.com/JonathanTremblay/UnityExportToZip
+Project Repository: https://github.com/JonathanTremblay/UnityExportToZip
+Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-project-to-zip-243983
 
 ## Version History
 
+* 1.0.2
+    * Fix to include .gitignore and other top level files (with names starting with excluded folder names).
 * 1.0.1
     * Minor changes to folder naming and exclusions.
     * Changed the default folder name inside the archive to use the archive name.

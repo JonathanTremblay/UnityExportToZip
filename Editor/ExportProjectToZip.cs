@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -8,7 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
-namespace ClassName
+namespace ExportProjectToZip
 {
     /// <summary>
     /// ExportProjectToZip allows to easily export an entire Unity project to a Zip file. 
@@ -18,7 +19,7 @@ namespace ClassName
     /// which is included to allow Unity to remember and load the last accessed scene.
     /// Note that other Library files can be recreated by Unity.
     /// 
-    /// The script should be placed inside an Editor folder in the Assets folder.
+    /// The script must be placed in an Editor folder (inside the Assets or Packages folder).
     /// To use it, simply select "Export Project to Zip..." from the file menu.
     /// Then choose the name and location for the Zip file.
     /// 
@@ -28,7 +29,7 @@ namespace ClassName
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static string currentVersion = "Version 1.0.1 (2023-04)";
+        static string currentVersion = "Version 1.0.2 (2023-05)";
         static bool shouldNameRootLevelFolderWithZipName = true; //Change this flag to false if you wish to keep the original project name.
         static bool shouldExcludeBuilds = false; //Change this flag to true if you wish to exclude "Build" or "Builds" folders.
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
@@ -40,6 +41,9 @@ namespace ClassName
         static List<string> filesToZip; //The list of all the files to zip in the project folder.
 
         [MenuItem("File/Export Project to Zip...", false, 199)] //Add an item in the file menu to call ExportProjectToZip (will be after Save project )
+        /// <summary>
+        /// Exports the entire project to a zip file when the menu item is selected.
+        /// </summary>
         public static void ExportToZip()
         {
             bool shouldContinue;
@@ -75,8 +79,8 @@ namespace ClassName
             }
 
             //finding files to add
-            List<string> exceptionList = new List<string>() { Path.Combine(projectPath, ".git"), Path.Combine(projectPath, "Library"), Path.Combine(projectPath, "Logs"), Path.Combine(projectPath, "obj"), Path.Combine(projectPath, "Obj"), Path.Combine(projectPath, "Temp") };
-            if (shouldExcludeBuilds) { exceptionList.Add(Path.Combine(projectPath, "Build")); exceptionList.Add(Path.Combine(projectPath, "Builds")); }
+            List<string> exceptionList = new List<string>() { GetFolderFullPath(".git"), GetFolderFullPath("Library"), GetFolderFullPath("Logs"), GetFolderFullPath("obj"), GetFolderFullPath("Obj"), GetFolderFullPath("Temp") };
+            if (shouldExcludeBuilds) { exceptionList.Add(GetFolderFullPath("Build")); exceptionList.Add(GetFolderFullPath("Builds")); }
             string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
             foreach (string file in topLevelFiles) { if (Path.GetExtension(file) == ".sln" || Path.GetExtension(file) == ".zip") { exceptionList.Add(file); } } //excludes .sln and .zip
             filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
@@ -102,6 +106,18 @@ namespace ClassName
 
             //deleting old zip file
             DeleteOrRestoreOldZip();
+        }
+
+        /// <summary>
+        /// Creates a full path to a folder within the project folder, including a trailing separator.
+        /// </summary>
+        /// <param name="folderName">The name of the folder.</param>
+        /// <returns>The full path to the folder with a trailing separator.</returns>
+        private static string GetFolderFullPath(string folderName)
+        {
+            string folderFullPath = Path.Combine(projectPath, folderName, "X"); //add a separator at the end to avoid matching a file starting with the same name
+            folderFullPath = folderFullPath.Substring(0, folderFullPath.Length - 1); //remove last X but keep the separator
+            return folderFullPath;
         }
 
         /// <summary>
@@ -398,3 +414,4 @@ namespace ClassName
         }
     }
 }
+#endif
