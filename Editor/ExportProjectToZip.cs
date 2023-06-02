@@ -29,7 +29,7 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static string currentVersion = "Version 1.0.2 (2023-05)";
+        static string currentVersion = "Version 1.0.3 (2023-06)";
         static bool shouldNameRootLevelFolderWithZipName = true; //Change this flag to false if you wish to keep the original project name.
         static bool shouldExcludeBuilds = false; //Change this flag to true if you wish to exclude "Build" or "Builds" folders.
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
@@ -40,7 +40,7 @@ namespace ExportProjectToZip
         static string oldZipFullPath; //The temporary full path of the old zip file to replace.
         static List<string> filesToZip; //The list of all the files to zip in the project folder.
 
-        [MenuItem("File/Export Project to Zip...", false, 199)] //Add an item in the file menu to call ExportProjectToZip (will be after Save project )
+        [MenuItem("File/Export Project to Zip...  %&s", false, 199)] //Add a menu item named "Export Project to Zip..." to the File menu, with the shortcut Ctrl+Alt+S
         /// <summary>
         /// Exports the entire project to a zip file when the menu item is selected.
         /// </summary>
