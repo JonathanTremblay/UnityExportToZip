@@ -13,14 +13,21 @@ namespace ExportProjectToZip
 {
     /// <summary>
     /// ExportProjectToZip allows to easily export an entire Unity project to a Zip file. 
-    /// The script will exclude all zip files at the top level of the project. 
-    /// It will also exclude the following folders: .git, Library, Logs, Obj, Temp.
-    /// An exception to excluding the Library folder is the LastSceneManagerSetup.txt file, 
-    /// which is included to allow Unity to remember and load the last accessed scene.
+    /// It will exclude all zip files at the top level of the project. 
+    /// It will also exclude the following folders: 
+    ///   • .git
+    ///   • Build/Builds folders (this can be changed in Project Settings).
+    ///   • Library
+    ///   • Logs
+    ///   • Obj
+    ///   • Temp.
+    /// Two files from the Library are preserved: 
+    ///   • LastSceneManagerSetup.txt (it stores the last accessed scene)
+    ///   • EditorUserBuildSettings.asset (it stores the build settings).
     /// Note that other Library files can be recreated by Unity.
     /// 
-    /// The script must be placed in an Editor folder (inside the Assets or Packages folder).
-    /// To use it, simply select "Export Project to Zip..." from the file menu.
+    /// The scripts must be placed in an Editor folder (inside the Assets or Packages folder).
+    /// To compress a project, simply select "Export Project to Zip..." from the file menu.
     /// Then choose the name and location for the Zip file.
     /// 
     /// Created by Jonathan Tremblay, teacher at Cegep de Saint-Jerome.
@@ -29,9 +36,8 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static string currentVersion = "Version 1.0.3 (2023-06)";
-        static bool shouldNameRootLevelFolderWithZipName = true; //Change this flag to false if you wish to keep the original project name.
-        static bool shouldExcludeBuilds = false; //Change this flag to true if you wish to exclude "Build" or "Builds" folders.
+        static readonly string currentVersion = "Version 1.1.0 (2023-08)";
+        
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
         static string zipName; //The name of the zip file to create or replace (with the extension).
@@ -80,12 +86,14 @@ namespace ExportProjectToZip
 
             //finding files to add
             List<string> exceptionList = new List<string>() { GetFolderFullPath(".git"), GetFolderFullPath("Library"), GetFolderFullPath("Logs"), GetFolderFullPath("obj"), GetFolderFullPath("Obj"), GetFolderFullPath("Temp") };
-            if (shouldExcludeBuilds) { exceptionList.Add(GetFolderFullPath("Build")); exceptionList.Add(GetFolderFullPath("Builds")); }
+            if (!ExportProjectToZipSettingsProvider.Settings.shouldIncludeBuilds) { exceptionList.Add(GetFolderFullPath("Build")); exceptionList.Add(GetFolderFullPath("Builds")); }
             string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
             foreach (string file in topLevelFiles) { if (Path.GetExtension(file) == ".sln" || Path.GetExtension(file) == ".zip") { exceptionList.Add(file); } } //excludes .sln and .zip
             filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
             string lastSceneFullPath = Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt");
             if (File.Exists(lastSceneFullPath)) { filesToZip.Add(lastSceneFullPath); }
+            string buildSettingsFullPath = Path.Combine(projectPath, "Library", "EditorUserBuildSettings.asset");
+            if (File.Exists(buildSettingsFullPath)) { filesToZip.Add(buildSettingsFullPath); }
 
             //adding files to the archive
             bool hasBeenCompleted;
@@ -113,7 +121,7 @@ namespace ExportProjectToZip
         /// </summary>
         /// <param name="folderName">The name of the folder.</param>
         /// <returns>The full path to the folder with a trailing separator.</returns>
-        private static string GetFolderFullPath(string folderName)
+        static private string GetFolderFullPath(string folderName)
         {
             string folderFullPath = Path.Combine(projectPath, folderName, "X"); //add a separator at the end to avoid matching a file starting with the same name
             folderFullPath = folderFullPath.Substring(0, folderFullPath.Length - 1); //remove last X but keep the separator
@@ -157,6 +165,7 @@ namespace ExportProjectToZip
 
         /// <summary>
         /// Checks if any assets in the project have unsaved changes.
+        /// Excludes shaders and custom render textures, because they are always marked as dirty.
         /// </summary>
         /// <returns>Returns true if any assets in the project have unsaved changes, or false if all assets are saved.</returns>
         static private bool CheckIfProjectNeedsToBeSaved()
@@ -164,8 +173,9 @@ namespace ExportProjectToZip
             string[] allAssetsPaths = AssetDatabase.GetAllAssetPaths();
             foreach (string assetPath in allAssetsPaths) //loop on each asset
             {
-                bool isNotShader = AssetDatabase.GetMainAssetTypeAtPath(assetPath) != typeof(Shader);
-                if (assetPath.StartsWith("Assets") && isNotShader) //checks only in the Assets folder, excludes shaders
+                Type assetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                bool isValidAssetType = (assetType != null) && (assetType != typeof(Shader)) && (assetType != typeof(UnityEngine.CustomRenderTexture));
+                if (assetPath.StartsWith("Assets") && isValidAssetType) //checks only in the Assets folder, excludes shaders and custom render textures
                 {
                     if (EditorUtility.IsDirty(AssetDatabase.LoadAssetAtPath(assetPath, typeof(object))))
                     {
@@ -224,7 +234,7 @@ namespace ExportProjectToZip
                 }
                 try
                 {
-                    string folderName = (shouldNameRootLevelFolderWithZipName) ? zipNameWithoutExt : projectName;
+                    string folderName = (ExportProjectToZipSettingsProvider.Settings.shouldNameRootLevelFolderWithZipName) ? zipNameWithoutExt : projectName;
                     string combinedPath = Path.Combine(folderName, fileRelativePath);
                     combinedPath = FixPathForMac(combinedPath);
                     zip.CreateEntryFromFile(file, combinedPath);
@@ -251,7 +261,7 @@ namespace ExportProjectToZip
         /// About the bug: https://forum.unity.com/threads/editorutility-displayprogressbar-not-showing-up-anymore.931875/
         /// </summary>
         /// <param name="file">The path to the file to be added to the zip archive.</param>
-        private static void PauseForProgressBarRefresh(string file)
+        static private void PauseForProgressBarRefresh(string file)
         {
             int fileSizeInMb = (int)(new FileInfo(file).Length / 1000000);
             if (fileSizeInMb >= 25)

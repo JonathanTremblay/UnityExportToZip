@@ -1,6 +1,6 @@
 # Unity ExportProjectToZip
 
-This is a Unity Editor script that allows easy export of an entire Unity project to a Zip file, directly from the Unity Editor file menu.
+This is a Unity Editor tool that allows easy export of an entire Unity project to a Zip file, directly from the Unity Editor file menu.
 
 ## Table of Contents
 
@@ -11,11 +11,11 @@ This is a Unity Editor script that allows easy export of an entire Unity project
 5. [About the Project](#about-the-project)
 6. [Contact](#contact)
 7. [Version History](#version-history)
-7. [License](#license)
+8. [License](#license)
 
 ## Getting Started
 
-Import this lightweight package to your project (or manually add the script to an Editor folder in the Assets folder), and you’re ready to zip!
+Import this lightweight package to your project (or manually add the scripts to an Editor folder in the Assets folder), and you’re ready to zip!
 
 To use it:
 1. Simply select "Export Project to Zip..." from the file menu (Ctrl+Alt+S). 
@@ -34,11 +34,11 @@ That's it!
 * Compatible with both Mac and Windows
 * No additional software needed
 
-\* Excludes all zip files at the top level of the project, and also excludes the following folders: .git, Library, Logs, Obj, Temp. An exception to excluding the Library folder is the LastSceneManagerSetup.txt file, which is included to allow Unity to remember and load the last accessed scene when the project is reopened. Note that other Library files can be recreated by Unity.
+\* Excludes all zip files at the top level of the project, and also excludes the following folders: .git, Build/Builds folders (this can be changed in Project Settings), Library, Logs, Obj, Temp. However, it preserves two files from the Library folder: LastSceneManagerSetup.txt (which stores the last accessed scene) and EditorUserBuildSettings.asset (which stores the build settings). Note that other Library files can be recreated by Unity.
 
 ## Compatibility
 
-Tested on Mac and Windows with Unity versions 2021.3.16 (LTS), 2022.1.11 and 2022.2.1.
+Tested on Mac and Windows with Unity versions 2022.3.6 (LTS), 2021.3.16 (LTS), 2022.2.1 and 2022.1.11.
 Projects larger than 8 GB were compressed successfully.
 
 ## Known Issues
@@ -52,8 +52,6 @@ I created this tool to help my students move their Unity projects between comput
 
 This tool simplifies the transfer and submission of Unity projects, making it easier for my students to focus on learning and creating. It can also be useful for seasoned game developers!
 
-I hope this script helps you to improve your workflow and make it more efficient.
-
 ## Contact
 
 **Jonathan Tremblay**  
@@ -65,6 +63,9 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 
 ## Version History
 
+* 1.1.0
+    * Added settings to allow inclusion of Build or Builds folders, and control the renaming of the root folder.
+    * Added an exception to keep Build Settings from the Library folder.
 * 1.0.3
     * Added a shortcut (Ctrl+Alt+S) and fixed a compilation bug during build process.
 * 1.0.2
@@ -72,16 +73,16 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 * 1.0.1
     * Made minor changes to folder naming and exclusions.
     * Changed the default folder name inside the archive to use the archive name.
-	* Added an option flag at the beginning the code to keep the original project name. 
-	* Added an option flag to exclude Build/Builds folders. 
-	* Added Obj to folder exclusions.
-	* Added .sln to file exclusions.
-	* Reorganized the project to follow the Packages folder standards.
-	* Added support for installing the package from a Git repository.
+    * Added an option flag at the beginning the code to keep the original project name.
+    * Added an option flag to exclude Build/Builds folders.
+    * Added Obj to folder exclusions.
+    * Added .sln to file exclusions.
+    * Reorganized the project to follow the Packages folder standards.
+    * Added support for installing the package from a Git repository.
 * 1.0.0
     * Revised readme, added a namespace, and improved Mac compatibility.
 
 ## License
 
-This script is available for distribution and modification under the CC0 License, which allows for free use and modification.  
+This tool is available for distribution and modification under the CC0 License, which allows for free use and modification.  
 https://creativecommons.org/share-your-work/public-domain/cc0/
