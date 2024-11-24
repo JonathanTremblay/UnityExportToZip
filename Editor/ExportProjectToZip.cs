@@ -12,31 +12,27 @@ using System.Threading;
 namespace ExportProjectToZip
 {
     /// <summary>
-    /// ExportProjectToZip allows to easily export an entire Unity project to a Zip file. 
-    /// It will exclude all zip files at the top level of the project. 
-    /// It will also exclude the following folders: 
-    ///   • .git
-    ///   • Build/Builds folders (this can be changed in Project Settings).
-    ///   • Library
-    ///   • Logs
-    ///   • Obj
-    ///   • Temp.
-    /// Two files from the Library are preserved: 
-    ///   • LastSceneManagerSetup.txt (it stores the last accessed scene)
-    ///   • EditorUserBuildSettings.asset (it stores the build settings).
+    /// ExportProjectToZip allows you to easily export an entire Unity project to a Zip file.
+    /// It will exclude unnecessary files from the Library folder, preserving only:
+    ///   • LastSceneManagerSetup.txt (stores the last accessed scene)
+    ///   • EditorUserBuildSettings.asset (stores the build settings)
     /// Note that other Library files can be recreated by Unity.
-    /// 
+    ///
+    /// It will also exclude the following folders: .git, .vs, .vscode, Build, Builds, Logs, obj, Obj, UserSettings, Temp.
+    /// Additionally, it will exclude all .gitignore, .csproj, .sln and .zip files at the top level of the project.
+    /// Exclusions can be changed in Project Settings.
+    ///
     /// The scripts must be placed in an Editor folder (inside the Assets or Packages folder).
-    /// To compress a project, simply select "Export Project to Zip..." from the file menu.
-    /// Then choose the name and location for the Zip file.
-    /// 
+    /// To compress a project, simply select "Export Project to Zip..." from the File menu,
+    /// then choose the name and location for the Zip file.
+    ///
     /// Created by Jonathan Tremblay, teacher at Cegep de Saint-Jerome.
     /// This project is available for distribution and modification under the CC0 License.
     /// https://github.com/JonathanTremblay/UnityExportToZip
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static readonly string currentVersion = "Version 1.1.0 (2023-08)";
+        static readonly string currentVersion = "Version 1.1.1 (2024-11)";
         
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
@@ -84,11 +80,15 @@ namespace ExportProjectToZip
                 return;
             }
 
-            //finding files to add
-            List<string> exceptionList = new List<string>() { GetFolderFullPath(".git"), GetFolderFullPath("Library"), GetFolderFullPath("Logs"), GetFolderFullPath("obj"), GetFolderFullPath("Obj"), GetFolderFullPath("Temp") };
-            if (!ExportProjectToZipSettingsProvider.Settings.shouldIncludeBuilds) { exceptionList.Add(GetFolderFullPath("Build")); exceptionList.Add(GetFolderFullPath("Builds")); }
+            //force Build folder to be inclusion or exclusion (for older versions of the package)
+            ExportProjectToZipSettingsProvider.UpdateBuildFoldersExclusion(true);
+            //find files to add:
+            List<string> exceptionList = ExportProjectToZipSettingsProvider.Settings.foldersToExclude.Select(folder => GetFolderFullPath(folder)).ToList();
             string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
-            foreach (string file in topLevelFiles) { if (Path.GetExtension(file) == ".sln" || Path.GetExtension(file) == ".zip") { exceptionList.Add(file); } } //excludes .sln and .zip
+            foreach (string file in topLevelFiles) 
+            { 
+                if (ExportProjectToZipSettingsProvider.Settings.topLevelExtensionsToExclude.Contains(Path.GetExtension(file))) { exceptionList.Add(file); } 
+            }
             filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
             string lastSceneFullPath = Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt");
             if (File.Exists(lastSceneFullPath)) { filesToZip.Add(lastSceneFullPath); }
@@ -121,7 +121,7 @@ namespace ExportProjectToZip
         /// </summary>
         /// <param name="folderName">The name of the folder.</param>
         /// <returns>The full path to the folder with a trailing separator.</returns>
-        static private string GetFolderFullPath(string folderName)
+        static string GetFolderFullPath(string folderName)
         {
             string folderFullPath = Path.Combine(projectPath, folderName, "X"); //add a separator at the end to avoid matching a file starting with the same name
             folderFullPath = folderFullPath.Substring(0, folderFullPath.Length - 1); //remove last X but keep the separator
@@ -133,7 +133,7 @@ namespace ExportProjectToZip
         /// </summary>
         /// <returns>True if no files were saved or all files were saved successfully, 
         /// false if the user chose not to save the files or if an error occurred while saving.</returns>
-        static private bool CheckForUnsavedFiles()
+        static bool CheckForUnsavedFiles()
         {
             if (CheckIfProjectNameIsEmpty()) { return false; }
             if (CheckIfProjectNeedsToBeSaved()) //at least one asset needs to be saved
@@ -153,7 +153,7 @@ namespace ExportProjectToZip
         /// Check if the project name is empty.
         /// </summary>
         /// <returns>True if the project name is empty, false otherwise.</returns>
-        static private bool CheckIfProjectNameIsEmpty()
+        static bool CheckIfProjectNameIsEmpty()
         {
             if (projectName == "")
             {
@@ -168,7 +168,7 @@ namespace ExportProjectToZip
         /// Excludes shaders and custom render textures, because they are always marked as dirty.
         /// </summary>
         /// <returns>Returns true if any assets in the project have unsaved changes, or false if all assets are saved.</returns>
-        static private bool CheckIfProjectNeedsToBeSaved()
+        static bool CheckIfProjectNeedsToBeSaved()
         {
             string[] allAssetsPaths = AssetDatabase.GetAllAssetPaths();
             foreach (string assetPath in allAssetsPaths) //loop on each asset
@@ -190,7 +190,7 @@ namespace ExportProjectToZip
         /// Prompts the user to save the project if it has unsaved changes, and saves it if desired.
         /// </summary>
         /// <returns>Returns true if the project was saved or if the user chose not to save it, or false if an error occurred while trying to save.</returns>
-        static private bool SaveProjectIfDesired()
+        static bool SaveProjectIfDesired()
         {
             if (EditorUtility.DisplayDialog("Warning", "The project has not been saved. Would you like to save it before zipping the project?", "Yes", "No"))
             {
@@ -214,7 +214,7 @@ namespace ExportProjectToZip
         /// <param name="zip">The zip archive to add the files to.</param>
         /// <param name="fileList">The list of files to add to the zip archive.</param>
         /// <returns>True if all files were added to the zip file, false if an error occured or if the operation has been cancelled by the user.</returns>
-        static private bool AddFilesToZip(ZipArchive zip, List<string> fileList)
+        static bool AddFilesToZip(ZipArchive zip, List<string> fileList)
         {
             int fileCount = fileList.Count();
             string details = "";
@@ -261,7 +261,7 @@ namespace ExportProjectToZip
         /// About the bug: https://forum.unity.com/threads/editorutility-displayprogressbar-not-showing-up-anymore.931875/
         /// </summary>
         /// <param name="file">The path to the file to be added to the zip archive.</param>
-        static private void PauseForProgressBarRefresh(string file)
+        static void PauseForProgressBarRefresh(string file)
         {
             int fileSizeInMb = (int)(new FileInfo(file).Length / 1000000);
             if (fileSizeInMb >= 25)
@@ -275,7 +275,7 @@ namespace ExportProjectToZip
         /// Save the current scene if desired by the user.
         /// </summary>
         /// <returns>True if the scene was saved or the user chose not to save it, false if an exception occurred while saving the scene.</returns>
-        static private bool SaveSceneIfDesired()
+        static bool SaveSceneIfDesired()
         {
             if (EditorUtility.DisplayDialog("Warning", "The current scene has not been saved. Would you like to save it before zipping the project?", "Yes", "No"))
             {
@@ -296,7 +296,7 @@ namespace ExportProjectToZip
         /// Delete the zip file if it already exists.
         /// </summary>
         /// <returns>Returns true if the file was replaced or false if an error occurred while trying to delete the file.</returns>
-        static private bool RenameExistingZip()
+        static bool RenameExistingZip()
         {
             oldZipFullPath = "";
             if (File.Exists(zipFullPath))
@@ -330,7 +330,7 @@ namespace ExportProjectToZip
         /// <summary>
         /// Delete the old zip file if it exists.
         /// </summary>
-        static private void DeleteOrRestoreOldZip()
+        static void DeleteOrRestoreOldZip()
         {
             if (File.Exists(oldZipFullPath) && oldZipFullPath != "")
             {
@@ -378,7 +378,7 @@ namespace ExportProjectToZip
         /// <summary>
         /// Delete the new zip file if it exists. This method is called when the user clicks on cancel.
         /// </summary>
-        static private void DeleteNewZip()
+        static void DeleteNewZip()
         {
             if (File.Exists(zipFullPath)) //there is a new file to delete
             {
@@ -408,7 +408,7 @@ namespace ExportProjectToZip
         /// </summary>
         /// <param name="path">The path to fix.</param>
         /// <returns>A string representing the fixed path with the alternate directory separator.</returns>
-        static private string FixPathForMac(string path)
+        static string FixPathForMac(string path)
         {
             return path.Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
@@ -417,7 +417,7 @@ namespace ExportProjectToZip
         /// Displays an error message to the user.
         /// </summary>
         /// <param name="message">The message to display to the user.</param>
-        static private void ShowError(string message)
+        static void ShowError(string message)
         {
             EditorUtility.DisplayDialog("FAILURE", "ERROR!\n" + message, "Ok");
             Debug.Log("<b>ERROR!</b> \n" + message);

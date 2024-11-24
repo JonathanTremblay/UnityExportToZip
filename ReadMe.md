@@ -27,18 +27,20 @@ That's it!
 
 ## Technical Details
 
-* Integrates directly in the file menu
-* Detects if scene or project needs saving
-* Adds only the required project files to the archive\*
-* Compression can be cancelled
-* Compatible with both Mac and Windows
-* No additional software needed
-
-\* Excludes all zip files at the top level of the project, and also excludes the following folders: .git, Build/Builds folders (this can be changed in Project Settings), Library, Logs, Obj, Temp. However, it preserves two files from the Library folder: LastSceneManagerSetup.txt (which stores the last accessed scene) and EditorUserBuildSettings.asset (which stores the build settings). Note that other Library files can be recreated by Unity.
+* Integrates directly in the file menu.
+* Detects if scene or project needs saving.
+* Compression can be cancelled.
+* Compatible with both Mac and Windows.
+* No additional software needed.
+* Adds only the required files to the archive:
+  * Excludes unnecessary files from the Library folder. Only two files from the Library folder are preserved: `LastSceneManagerSetup.txt` (which stores the last accessed scene) and `EditorUserBuildSettings.asset` (which stores the build settings). Note that other Library files can be recreated by Unity.
+  * Additionally, it excludes the following folders: `.git`, `.vs`, `.vscode`, `Build`, `Builds`, `Logs`, `obj`, `Obj`, `UserSettings`, `Temp`.
+  * It also excludes all `.gitignore`, `.csproj`, `.sln`, and `.zip` files at the top level of the project.
+  * Exclusions can be changed in Project Settings.
 
 ## Compatibility
 
-Tested on Mac and Windows with Unity versions 2022.3.6 (LTS), 2021.3.16 (LTS), 2022.2.1 and 2022.1.11.
+Tested on Mac and Windows, with versions 2021.3.16+ (including 2022, 2023 and 6.0).
 Projects larger than 8 GB were compressed successfully.
 
 ## Known Issues
@@ -63,6 +65,8 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 
 ## Version History
 
+* 1.1.1
+    * Added exclusion customization settings.
 * 1.1.0
     * Added settings to allow inclusion of Build or Builds folders, and control the renaming of the root folder.
     * Added an exception to keep Build Settings from the Library folder.
