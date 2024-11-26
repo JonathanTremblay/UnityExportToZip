@@ -32,8 +32,8 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static readonly string currentVersion = "Version 1.1.1 (2024-11)";
-        
+        static readonly string currentVersion = "Version 1.1.2 (2024-11)";
+
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
         static string zipName; //The name of the zip file to create or replace (with the extension).
@@ -50,9 +50,9 @@ namespace ExportProjectToZip
         {
             bool shouldContinue;
 
-            //checking and saving unsaved files
-            projectPath = System.IO.Directory.GetCurrentDirectory();
-            projectName = System.IO.Path.GetFileName(projectPath);
+            // Checking and saving unsaved files
+            projectPath = FixLongPath(Directory.GetCurrentDirectory());
+            projectName = Path.GetFileName(projectPath);
 
             shouldContinue = CheckForUnsavedFiles();
             if (!shouldContinue)
@@ -61,18 +61,18 @@ namespace ExportProjectToZip
                 return;
             }
 
-            //choosing zip name and path
+            // Choosing zip name and path
             zipName = projectName + ".zip";
-            zipFullPath = EditorUtility.SaveFilePanel("Export project to zip", projectPath, zipName, "zip");
-            if (zipFullPath == "")
+            zipFullPath = FixLongPath(EditorUtility.SaveFilePanel("Export project to zip", projectPath, zipName, "zip"));
+            if (string.IsNullOrEmpty(zipFullPath))
             {
-                //user has pressed the cancel button in the SaveFilePanel
+                // User has pressed the cancel button in the SaveFilePanel
                 return;
             }
             zipName = Path.GetFileName(zipFullPath);
             zipNameWithoutExt = Path.GetFileNameWithoutExtension(zipFullPath);
 
-            //temporarily renaming existing zip file
+            // Temporarily renaming existing zip file
             shouldContinue = RenameExistingZip();
             if (!shouldContinue)
             {
@@ -80,39 +80,54 @@ namespace ExportProjectToZip
                 return;
             }
 
-            //force Build folder to be inclusion or exclusion (for older versions of the package)
+            // Force Build(s) folder to be included or excluded (for older versions of the package)
             ExportProjectToZipSettingsProvider.UpdateBuildFoldersExclusion(true);
-            //find files to add:
-            List<string> exceptionList = ExportProjectToZipSettingsProvider.Settings.foldersToExclude.Select(folder => GetFolderFullPath(folder)).ToList();
-            string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
-            foreach (string file in topLevelFiles) 
-            { 
-                if (ExportProjectToZipSettingsProvider.Settings.topLevelExtensionsToExclude.Contains(Path.GetExtension(file))) { exceptionList.Add(file); } 
-            }
-            filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories).Where(d => exceptionList.All(e => !d.StartsWith(e))).ToList();
-            string lastSceneFullPath = Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt");
-            if (File.Exists(lastSceneFullPath)) { filesToZip.Add(lastSceneFullPath); }
-            string buildSettingsFullPath = Path.Combine(projectPath, "Library", "EditorUserBuildSettings.asset");
-            if (File.Exists(buildSettingsFullPath)) { filesToZip.Add(buildSettingsFullPath); }
 
-            //adding files to the archive
+            // Find files to add
+            List<string> exceptionList = ExportProjectToZipSettingsProvider.Settings.foldersToExclude.Select(folder => FixLongPath(GetFolderFullPath(folder))).ToList();
+            string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
+            foreach (string file in topLevelFiles)
+            {
+                if (ExportProjectToZipSettingsProvider.Settings.topLevelExtensionsToExclude.Contains(Path.GetExtension(file)))
+                {
+                    exceptionList.Add(FixLongPath(file));
+                }
+            }
+            filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories)
+                .Where(d => exceptionList.All(e => !d.StartsWith(e)))
+                .Select(FixLongPath)
+                .ToList();
+
+            string lastSceneFullPath = FixLongPath(Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt"));
+            if (File.Exists(lastSceneFullPath))
+            {
+                filesToZip.Add(lastSceneFullPath);
+            }
+
+            string buildSettingsFullPath = FixLongPath(Path.Combine(projectPath, "Library", "EditorUserBuildSettings.asset"));
+            if (File.Exists(buildSettingsFullPath))
+            {
+                filesToZip.Add(buildSettingsFullPath);
+            }
+
+            // Adding files to the archive
             bool hasBeenCompleted;
             using (ZipArchive zip = ZipFile.Open(zipFullPath, ZipArchiveMode.Create))
             {
                 hasBeenCompleted = AddFilesToZip(zip, filesToZip);
-                zip.Dispose(); //prevents a bug where the process kept control of the file
             }
+
             if (hasBeenCompleted)
             {
-                Debug.Log($"<b>SUCCESS!</b> The project was successfully exported (the Zip has {filesToZip.Count()} files). {zipFullPath} \n** Export Project to Zip is free and open source. For updates and feedback, visit https://github.com/JonathanTremblay/UnityExportToZip. **\n** {currentVersion} **");
+                Debug.Log($"<b>SUCCESS!</b> The project was successfully exported (the Zip has {filesToZip.Count} files). {FixPathForMac(zipFullPath)} \n** Export Project to Zip is free and open source. For updates and feedback, visit https://github.com/JonathanTremblay/UnityExportToZip. **\n** {currentVersion} **");
             }
             else
             {
-                ShowError($"The compression has been cancelled before completion.");
+                ShowError("The compression has been cancelled before completion.");
                 DeleteNewZip();
             }
 
-            //deleting old zip file
+            // Deleting old zip file
             DeleteOrRestoreOldZip();
         }
 
@@ -410,6 +425,7 @@ namespace ExportProjectToZip
         /// <returns>A string representing the fixed path with the alternate directory separator.</returns>
         static string FixPathForMac(string path)
         {
+            if (path.StartsWith(@"\\?\")) path = path.Substring(4); //remove the "\\?\" prefix if it exists
             return path.Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
@@ -421,6 +437,23 @@ namespace ExportProjectToZip
         {
             EditorUtility.DisplayDialog("FAILURE", "ERROR!\n" + message, "Ok");
             Debug.Log("<b>ERROR!</b> \n" + message);
+        }
+
+        /// <summary>
+        /// On Windows, checks if the path is longer than 260 characters and adds the "\\?\" prefix if necessary.
+        /// </summary>
+        /// <param name="path">The path to check and fix.</param>
+        public static string FixLongPath(string path)
+        {
+            if (Application.platform == RuntimePlatform.WindowsEditor) //Windows only
+            {
+                if (!path.StartsWith(@"\\?\")) //if (path.Length > 260 && !path.StartsWith(@"\\?\")) //not necessary to check the length
+                {
+                    path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+                    return @"\\?\" + Path.GetFullPath(path);
+                }
+            }
+            return path;
         }
     }
 }

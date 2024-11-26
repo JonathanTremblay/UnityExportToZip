@@ -65,6 +65,8 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 
 ## Version History
 
+* 1.1.2
+    * Added support for paths longer than 260 characters.
 * 1.1.1
     * Added exclusion customization settings.
 * 1.1.0
