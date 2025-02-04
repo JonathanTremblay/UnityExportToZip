@@ -19,7 +19,7 @@ Import this lightweight package to your project (or manually add the scripts to 
 
 To use it:
 1. Simply select "Export Project to Zip..." from the file menu (Ctrl+Alt+S). 
-2. If your project or your scene needs saving, you will be prompted to save (optional).
+2. If your project or scene needs saving, you will be prompted to save (optional).
 3. Then choose the name and location for the Zip file. 
 4. Sit back and watch the progress bar as the compression is done (can be cancelled).
 
@@ -65,6 +65,9 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 
 ## Version History
 
+* 1.1.3
+    * Fixed an issue where canceling the file name prompt caused an error.
+    * Renamed asmdef file to match namespace.
 * 1.1.2
     * Added support for paths longer than 260 characters.
 * 1.1.1

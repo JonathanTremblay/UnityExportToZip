@@ -1,5 +1,5 @@
 {
-    "name": "tim-cstj.export-project-to-zip",
+    "name": "ExportProjectToZip",
     "rootNamespace": "",
     "references": [],
     "includePlatforms": [

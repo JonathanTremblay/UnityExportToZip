@@ -32,7 +32,7 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip : MonoBehaviour
     {
-        static readonly string currentVersion = "Version 1.1.2 (2024-11)";
+        static readonly string currentVersion = "Version 1.1.3 (2025-02)";
 
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
@@ -440,14 +440,14 @@ namespace ExportProjectToZip
         }
 
         /// <summary>
-        /// On Windows, checks if the path is longer than 260 characters and adds the "\\?\" prefix if necessary.
+        /// On Windows, adds the "\\?\" prefix if necessary.
         /// </summary>
         /// <param name="path">The path to check and fix.</param>
         public static string FixLongPath(string path)
         {
             if (Application.platform == RuntimePlatform.WindowsEditor) //Windows only
             {
-                if (!path.StartsWith(@"\\?\")) //if (path.Length > 260 && !path.StartsWith(@"\\?\")) //not necessary to check the length
+                if (!path.StartsWith(@"\\?\") && !string.IsNullOrEmpty(path)) //not already prefixed and not empty
                 {
                     path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
                     return @"\\?\" + Path.GetFullPath(path);
