@@ -65,6 +65,8 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 
 ## Version History
 
+* 1.1.3
+    * Fixed an issue where canceling the file name prompt caused an error.
 * 1.1.2
     * Added support for paths longer than 260 characters.
 * 1.1.1
