@@ -30,9 +30,9 @@ namespace ExportProjectToZip
     /// This project is available for distribution and modification under the CC0 License.
     /// https://github.com/JonathanTremblay/UnityExportToZip
     /// </summary>
-    public class ExportProjectToZip : MonoBehaviour
+    public class ExportProjectToZip
     {
-        static readonly string currentVersion = "Version 1.1.3 (2025-02)";
+        static readonly string currentVersion = "Version 1.1.4 (2025-08)";
 
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
@@ -41,6 +41,8 @@ namespace ExportProjectToZip
         static string zipFullPath; //The full path of the zip file to create (with the filename and the extension).
         static string oldZipFullPath; //The temporary full path of the old zip file to replace.
         static List<string> filesToZip; //The list of all the files to zip in the project folder.
+        static List<string> unzippableLibraryFiles; //The list of all the files that cannot be zipped (for example, if they are in use).
+        static DateTime lastRefreshWorkaroundTime = DateTime.MinValue;
 
         [MenuItem("File/Export Project to Zip...  %&s", false, 199)] //Add a menu item named "Export Project to Zip..." to the File menu, with the shortcut Ctrl+Alt+S
         /// <summary>
@@ -60,6 +62,9 @@ namespace ExportProjectToZip
                 ShowError("The project has not been exported.");
                 return;
             }
+
+            //Clearing unzippableFiles list:
+            unzippableLibraryFiles = new ();
 
             // Choosing zip name and path
             zipName = projectName + ".zip";
@@ -99,13 +104,13 @@ namespace ExportProjectToZip
                 .ToList();
 
             string lastSceneFullPath = FixLongPath(Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt"));
-            if (File.Exists(lastSceneFullPath))
+            if (File.Exists(lastSceneFullPath) && !filesToZip.Contains(lastSceneFullPath)) // It exists but is not already in the list
             {
                 filesToZip.Add(lastSceneFullPath);
             }
 
             string buildSettingsFullPath = FixLongPath(Path.Combine(projectPath, "Library", "EditorUserBuildSettings.asset"));
-            if (File.Exists(buildSettingsFullPath))
+            if (File.Exists(buildSettingsFullPath) && !filesToZip.Contains(buildSettingsFullPath)) // It exists but is not already in the list
             {
                 filesToZip.Add(buildSettingsFullPath);
             }
@@ -119,7 +124,10 @@ namespace ExportProjectToZip
 
             if (hasBeenCompleted)
             {
-                Debug.Log($"<b>SUCCESS!</b> The project was successfully exported (the Zip has {filesToZip.Count} files). {FixPathForMac(zipFullPath)} \n** Export Project to Zip is free and open source. For updates and feedback, visit https://github.com/JonathanTremblay/UnityExportToZip. **\n** {currentVersion} **");
+                string message = $"<b>SUCCESS!</b> The project was successfully exported (the Zip contains {filesToZip.Count} files). {FixPathForMac(zipFullPath)} \n** Export Project to Zip is free and open source. For updates and feedback, visit https://github.com/JonathanTremblay/UnityExportToZip. **\n** {currentVersion} **";
+                int unzippableCount = unzippableLibraryFiles.Count;
+                if (unzippableCount > 0) message += $"\n<b>EXPERIMENTAL!</b> The following {unzippableCount} Library files were skipped:\n" + string.Join("\n", unzippableLibraryFiles);
+                Debug.Log(message);
             }
             else
             {
@@ -256,8 +264,16 @@ namespace ExportProjectToZip
                 }
                 catch (IOException exception)
                 {
-                    ShowError($"An error occurred while adding the file to the zip archive: {exception.Message}\nThe project was not exported.");
-                    return false;
+                    //if it is a file in use from the Library folder, it will be added to the unzippableFiles list:
+                    if (file.StartsWith(Path.Combine(projectPath, "Library")))
+                    {
+                        unzippableLibraryFiles.Add(file);
+                    }
+                    else
+                    {
+                        ShowError($"An error occurred while adding the file to the zip archive: {exception.Message}\nThe project was not exported.");
+                        return false;
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -273,6 +289,7 @@ namespace ExportProjectToZip
         /// Workaround for a bug in the Unity Editor that prevents the progress bar from updating.
         /// This method will add a delay in the execution to allow the progress bar to refresh.
         /// A small file gets a short delay, but a large file (25 MB or more) gets a long delay. 
+        /// To speed up execution, short delays will be ignored if the last delay occurred recently.
         /// About the bug: https://forum.unity.com/threads/editorutility-displayprogressbar-not-showing-up-anymore.931875/
         /// </summary>
         /// <param name="file">The path to the file to be added to the zip archive.</param>
@@ -282,8 +299,13 @@ namespace ExportProjectToZip
             if (fileSizeInMb >= 25)
             {
                 Thread.Sleep(100); //long pause (to be sure that the progress bar will show this specific filename)
+                lastRefreshWorkaroundTime = DateTime.Now;
             }
-            else Thread.Sleep(1); //short pause
+            else if (lastRefreshWorkaroundTime.AddMilliseconds(200) < DateTime.Now)
+            {
+                Thread.Sleep(1); //short pause
+                lastRefreshWorkaroundTime = DateTime.Now; 
+            }
         }
 
         /// <summary>

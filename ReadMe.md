@@ -1,6 +1,6 @@
 # Unity ExportProjectToZip
 
-This is a Unity Editor tool that allows easy export of an entire Unity project to a Zip file, directly from the Unity Editor file menu.
+This Unity Editor tool lets you easily export an entire project to a zip file directly from the File menu.
 
 ## Table of Contents
 
@@ -15,19 +15,19 @@ This is a Unity Editor tool that allows easy export of an entire Unity project t
 
 ## Getting Started
 
-Import this lightweight package to your project (or manually add the scripts to an Editor folder in the Assets folder), and you’re ready to zip!
+Import this lightweight package to your project, and you’re ready to zip!
 
 To use it:
-1. Simply select "Export Project to Zip..." from the file menu (Ctrl+Alt+S). 
+1. Simply select "Export Project to Zip..." from the File menu (Ctrl+Alt+S). 
 2. If your project or scene needs saving, you will be prompted to save (optional).
-3. Then choose the name and location for the Zip file. 
+3. Then choose the name and location for the zip file. 
 4. Sit back and watch the progress bar as the compression is done (can be cancelled).
 
 That's it!
 
 ## Technical Details
 
-* Integrates directly in the file menu.
+* Integrates directly in the File menu.
 * Detects if scene or project needs saving.
 * Compression can be cancelled.
 * Compatible with both Mac and Windows.
@@ -40,7 +40,7 @@ That's it!
 
 ## Compatibility
 
-Tested on Mac and Windows, with versions 2021.3.16+ (including 2022, 2023 and 6.0).
+Tested on Mac and Windows with Unity versions ranging from 2021.3.16 to 6.1.
 Projects larger than 8 GB were compressed successfully.
 
 ## Known Issues
@@ -50,7 +50,7 @@ Projects larger than 8 GB were compressed successfully.
 
 ## About the Project
 
-I created this tool to help my students move their Unity projects between computers and to make it easier for them to hand in their assignments. As a teacher, I noticed that the huge size of the Library folder in a Unity project can be difficult to manage for new users. While the Library folder can be recreated if deleted, it is not an intuitive process for those unfamiliar with Unity. 
+I created this tool to help my students move their Unity projects between computers and to make it easier for them to hand in their assignments. As a teacher, I noticed that the huge size of the Library folder in a project can be difficult to manage for new users. While the Library folder can be recreated if deleted, it is not an intuitive process for those unfamiliar with Unity. 
 
 This tool simplifies the transfer and submission of Unity projects, making it easier for my students to focus on learning and creating. It can also be useful for seasoned game developers!
 
@@ -65,8 +65,12 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 
 ## Version History
 
+* 1.1.4
+    * Improved execution speed.
+    * Fixed an issue with Project Settings for folder names with a dot.
+    * Added an experimental feature to include the Library folder.
 * 1.1.3
-    * Fixed an issue where canceling the file name prompt caused an error.
+    * Fixed an issue where cancelling the file name prompt caused an error.
     * Renamed asmdef file to match namespace.
 * 1.1.2
     * Added support for paths longer than 260 characters.

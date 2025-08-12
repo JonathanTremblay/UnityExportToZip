@@ -296,10 +296,10 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 1
     m_LineSpacing: 1.15
-  m_Text: "To export your project to a Zip file:\r\n1. Simply select \"Export Project
-    to Zip...\" from the file menu. \r\n2. If your project or scene needs saving,
+  m_Text: "To export your project to a zip file:\r\n1. Simply select \"Export Project
+    to Zip...\" from the File menu. \r\n2. If your project or scene needs saving,
     you will be prompted to save (optional).\r\n3. Then choose the name and location
-    for the Zip file. \r\n4. Sit back and watch the progress bar as the compression
+    for the zip file. \r\n4. Sit back and watch the progress bar as the compression
     is done (can be cancelled).\n\r\nThat's it! For more information, consult the
     ReadMe file."
 --- !u!222 &1254180334

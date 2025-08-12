@@ -13,29 +13,45 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZipSettingsProvider : SettingsProvider
     {
-        static readonly Dictionary<string, string> messages = new Dictionary<string, string>
+		enum MessageKey { RepositoryLink, RenameZip, RenameZipTooltip, IncludeBuilds, IncludeBuildsTooltip, Experimental, RevealExperimental, IncludeLibrary, IncludeLibraryTooltip, IncludeLibraryWarning, FoldersToExclude, ExtensionsToExclude, RestoreDefaults, MoreInfo, InvalidFolderTitle, InvalidFolder, Mandatory }
+        static readonly Dictionary<MessageKey, string> messages = new()
         {
-            { "ABOUT", "ExportProjectToZip allows to easily export an entire Unity project to a Zip file." },
-            { "REPOSITORY_LINK", "https://github.com/JonathanTremblay/UnityExportToZip" },
-            { "RENAME_ZIP", "Rename Root Folder Using Zip Filename" },
-            { "RENAME_ZIP_TOOLTIP", "Name the root level folder in the archive with the name of the zip file." },
-            { "INCLUDE_BUILDS", "Include Build(s) Folder(s)" },
-            { "INCLUDE_BUILDS_TOOLTIP", "Include Build and/or Builds folders in the zip archive." },
-            { "FOLDERS_TO_EXCLUDE", "Folders to Exclude (From Root Level)" },
-            { "EXTENSIONS_TO_EXCLUDE", "File Extensions to Exclude (From Root Level)" },
-            { "RESTORE_DEFAULTS", "Restore Defaults" },
-            { "MORE_INFO", "More info: " },
-            { "INVALID_FOLDER_TITLE", "Invalid Folder Exclusion" },
-            { "INVALID_FOLDER", "The folder '{0}' cannot be added to the exclusions (it is part of a valid project)." },
-            { "MANDATORY", "mandatory" }
+            { MessageKey.RepositoryLink, "https://github.com/JonathanTremblay/UnityExportToZip" },
+            { MessageKey.RenameZip, "Rename Root Folder Using Zip Filename" },
+            { MessageKey.RenameZipTooltip, "Name the root level folder in the archive with the name of the zip file." },
+            { MessageKey.IncludeBuilds, "Include Build(s) Folder(s)" },
+            { MessageKey.IncludeBuildsTooltip, "Include Build and/or Builds folders in the zip archive." },
+            { MessageKey.Experimental, "Show Experimental Features" },
+            { MessageKey.RevealExperimental, "Show experimental features (not recommended!)" },
+            { MessageKey.IncludeLibrary, "Include Library Folder (EXPERIMENTAL)" },
+            { MessageKey.IncludeLibraryTooltip, "Include the Library folder in the zip archive." },
+            { MessageKey.IncludeLibraryWarning, "Warning! Including the Library folder is a beta feature. It is not recommended except for a very small project. \n\nReopening a zipped project will be faster, but zipping and unzipping will be slower. Also, the resulting zip file will be significantly larger. \n\nOn Windows, some files from the Library will be skipped. It works best on macOS, which does not lock any files in the Library folder." },
+            { MessageKey.FoldersToExclude, "Folders to Exclude (From Root Level)" },
+            { MessageKey.ExtensionsToExclude, "File Extensions to Exclude (From Root Level)" },
+            { MessageKey.RestoreDefaults, "Restore Defaults" },
+            { MessageKey.MoreInfo, "More info: " },
+            { MessageKey.InvalidFolderTitle, "Invalid Folder Exclusion" },
+            { MessageKey.InvalidFolder, "The folder '{0}' cannot be added to the exclusions (it is part of a valid project)." },
+            { MessageKey.Mandatory, "mandatory" }
         };
 
-        const float spacing = 10f;
+        const float verticalSpacing = 10f;
+        const float smallVerticalSpacing = 4f;
         const float labelWidth = 250f;
+        const int labelFieldHeight = 15;
+        const int textFieldHeight = 20;
+        const int buttonWidthRemove = 20;
+        const int buttonWidthAdd = 50;
+        const int buttonHeight = 20;
+        const int spaceAdjustmentBetweenLines = -2;
+        readonly GUIStyle smallLabelStyle = new(EditorStyles.label) { padding = new RectOffset(2, 2, 0, 0), fontSize = 11 };
+        readonly GUIStyle smallLabelStyleDisabled = new(EditorStyles.label) { padding = new RectOffset(2, 2, 0, 0), fontSize = 11, normal = { textColor = Color.gray } };
+        GUIStyle buttonStyle;
+        GUIStyle textFieldStyle;
         const string projectSettingsPath = "ProjectSettings";
         const string settingsFileName = "ExportProjectToZipSettings.json";
-        static readonly List<string> mandatoryFolders = new List<string> { "Library" }; // List of folders that cannot be removed from the exclusions
-        static readonly List<string> forbiddenFolders = new List<string> { "Assets", "Packages", "ProjectSettings" }; // List of folders that cannot be excluded
+        static readonly List<string> mandatoryFolders = new() { "Library" }; // List of folders that cannot be removed from the exclusions
+        static readonly List<string> forbiddenFolders = new() { "Assets", "Packages", "ProjectSettings" }; // List of folders that cannot be excluded
         static ExportProjectToZipSettings settings;
         static string newFolderToExclude = string.Empty;
         static string newExtensionToExclude = string.Empty;
@@ -59,29 +75,37 @@ namespace ExportProjectToZip
         {
             base.OnGUI(searchContext);
 
-            GUILayout.Space(spacing);
+            buttonStyle = new(GUI.skin.button) { padding = new RectOffset(0, 0, 2, 2), margin = new RectOffset(2, 3, 5, 2) };
+            textFieldStyle = new(GUI.skin.textField) { padding = new RectOffset(5, 6, 3, 2), margin = new RectOffset(4, 3, 5, 0), fontSize = 11 };
+
+            GUILayout.Space(verticalSpacing);
             GUILayout.BeginHorizontal();
-            GUILayout.Space(spacing);
+            GUILayout.Space(verticalSpacing);
             GUILayout.BeginVertical();
 
             DrawNamingSection();
-            GUILayout.Space(spacing);
+            GUILayout.Space(smallVerticalSpacing);
 
             DrawInclusionsSection();
-            GUILayout.Space(spacing);
+            GUILayout.Space(verticalSpacing);
 
             DrawFolderExclusionsSection();
-            GUILayout.Space(spacing);
+            GUILayout.Space(verticalSpacing);
 
             DrawExtensionExclusionsSection();
-            GUILayout.Space(spacing);
+            GUILayout.Space(verticalSpacing);
+
+            DrawExperimentalSection();
+            GUILayout.Space(verticalSpacing);
 
             DrawRestoreDefaultsButton();
-            GUILayout.Space(spacing);
-
-            if (shouldSaveSettings) SaveSettings();
+            GUILayout.Space(verticalSpacing);
 
             DrawAboutSection();
+            GUILayout.Space(verticalSpacing);
+
+
+            if (shouldSaveSettings) SaveSettings();
 
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
@@ -94,7 +118,7 @@ namespace ExportProjectToZip
         {
             bool isSelected;
             GUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(new GUIContent(messages["RENAME_ZIP"], messages["RENAME_ZIP_TOOLTIP"]), GUILayout.Width(labelWidth));
+            EditorGUILayout.LabelField(new GUIContent(messages[MessageKey.RenameZip], messages[MessageKey.RenameZipTooltip]), GUILayout.Width(labelWidth));
             isSelected = EditorGUILayout.Toggle(Settings.shouldNameRootLevelFolderWithZipName, GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
             if (Settings.shouldNameRootLevelFolderWithZipName != isSelected)
@@ -111,7 +135,7 @@ namespace ExportProjectToZip
         {
             bool isSelected;
             GUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(new GUIContent(messages["INCLUDE_BUILDS"], messages["INCLUDE_BUILDS_TOOLTIP"]), GUILayout.Width(labelWidth));
+            EditorGUILayout.LabelField(new GUIContent(messages[MessageKey.IncludeBuilds], messages[MessageKey.IncludeBuildsTooltip]), GUILayout.Width(labelWidth));
             isSelected = EditorGUILayout.Toggle(Settings.shouldIncludeBuilds, GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
             if (Settings.shouldIncludeBuilds != isSelected)
@@ -127,34 +151,39 @@ namespace ExportProjectToZip
         /// </summary>
         void DrawFolderExclusionsSection()
         {
-            EditorGUILayout.LabelField(messages["FOLDERS_TO_EXCLUDE"], EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(messages[MessageKey.FoldersToExclude], EditorStyles.boldLabel);
             for (int i = 0; i < Settings.foldersToExclude.Count; i++)
             {
                 GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical(GUI.skin.box);
                 string folder = Settings.foldersToExclude[i];
                 bool isMandatory = mandatoryFolders.Contains(folder);
 
-                EditorGUI.BeginDisabledGroup(isMandatory);
-                string displayFolder = isMandatory ? folder + $" [{messages["MANDATORY"]}]" : folder;
-                string validatedFolder = ValidateFolder(EditorGUILayout.TextField(displayFolder));
-                if (!string.IsNullOrEmpty(validatedFolder) && !isMandatory)
-                {
-                    Settings.foldersToExclude[i] = validatedFolder;
-                    Settings.foldersToExclude.Sort();
-                }
-                EditorGUI.EndDisabledGroup();
+                string displayFolder = isMandatory ? folder + $" [{messages[MessageKey.Mandatory]}]" : folder;
+                GUIStyle labelStyle = isMandatory ? smallLabelStyleDisabled : smallLabelStyle;
+                EditorGUILayout.LabelField(displayFolder, labelStyle, GUILayout.Height(labelFieldHeight));
 
-                if (!isMandatory && GUILayout.Button("-", GUILayout.Width(20)))
+                GUILayout.EndVertical();
+
+                GUI.enabled = !isMandatory;
+                if (GUILayout.Button("-", buttonStyle, GUILayout.Width(buttonWidthRemove), GUILayout.Height(buttonHeight)))
                 {
-                    Settings.foldersToExclude.RemoveAt(i);
-                    shouldSaveSettings = true;
+                    if (!isMandatory)
+                    {
+                        Settings.foldersToExclude.RemoveAt(i);
+                        shouldSaveSettings = true;
+                    }
                 }
+                GUI.enabled = true; // Reset GUI state
+
                 GUILayout.EndHorizontal();
+                GUILayout.Space(spaceAdjustmentBetweenLines);
             }
             // Add new folder exclusion
             GUILayout.BeginHorizontal();
-            newFolderToExclude = EditorGUILayout.TextField(newFolderToExclude);
-            if (GUILayout.Button("Add", GUILayout.Width(50)))
+            GUI.SetNextControlName("FolderToExcludeField");
+            newFolderToExclude = EditorGUILayout.TextField(newFolderToExclude, textFieldStyle, GUILayout.Height(textFieldHeight));
+            if (GUILayout.Button("Add", buttonStyle, GUILayout.Width(buttonWidthAdd), GUILayout.Height(buttonHeight)))
             {
                 string validatedFolder = ValidateFolder(newFolderToExclude);
                 if (!string.IsNullOrEmpty(validatedFolder) && !Settings.foldersToExclude.Contains(validatedFolder))
@@ -163,6 +192,7 @@ namespace ExportProjectToZip
                     Settings.foldersToExclude.Sort();
                     newFolderToExclude = string.Empty;
                     shouldSaveSettings = true;
+                    GUI.FocusControl(null);
                 }
             }
             GUILayout.EndHorizontal();
@@ -173,27 +203,33 @@ namespace ExportProjectToZip
         /// </summary>
         void DrawExtensionExclusionsSection()
         {
-            EditorGUILayout.LabelField(messages["EXTENSIONS_TO_EXCLUDE"], EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(messages[MessageKey.ExtensionsToExclude], EditorStyles.boldLabel);
             for (int i = 0; i < Settings.topLevelExtensionsToExclude.Count; i++)
             {
                 GUILayout.BeginHorizontal();
-                string validatedExtension = ValidateExtension(EditorGUILayout.TextField(Settings.topLevelExtensionsToExclude[i]));
+                GUILayout.BeginVertical(GUI.skin.box);
+
+                string extension = Settings.topLevelExtensionsToExclude[i];
+                EditorGUILayout.LabelField(extension, smallLabelStyle, GUILayout.Height(labelFieldHeight));
+                string validatedExtension = ValidateExtension(extension);
                 if (!string.IsNullOrEmpty(validatedExtension))
                 {
                     Settings.topLevelExtensionsToExclude[i] = validatedExtension;
                     Settings.topLevelExtensionsToExclude.Sort();
                 }
-                if (GUILayout.Button("-", GUILayout.Width(20)))
+                GUILayout.EndVertical();
+                if (GUILayout.Button("-", buttonStyle, GUILayout.Width(buttonWidthRemove), GUILayout.Height(buttonHeight)))
                 {
                     Settings.topLevelExtensionsToExclude.RemoveAt(i);
                     shouldSaveSettings = true;
                 }
                 GUILayout.EndHorizontal();
+                GUILayout.Space(spaceAdjustmentBetweenLines);
             }
             // Add new extension exclusion
             GUILayout.BeginHorizontal();
-            newExtensionToExclude = EditorGUILayout.TextField(newExtensionToExclude);
-            if (GUILayout.Button("Add", GUILayout.Width(50)))
+            newExtensionToExclude = EditorGUILayout.TextField(newExtensionToExclude, textFieldStyle, GUILayout.Height(textFieldHeight));
+            if (GUILayout.Button("Add", buttonStyle, GUILayout.Width(buttonWidthAdd), GUILayout.Height(buttonHeight)))
             {
                 string validatedExtension = ValidateExtension(newExtensionToExclude);
                 if (!string.IsNullOrEmpty(validatedExtension) && !Settings.topLevelExtensionsToExclude.Contains(validatedExtension))
@@ -208,11 +244,48 @@ namespace ExportProjectToZip
         }
 
         /// <summary>
+        /// Creates the experimental section of the settings GUI.
+        /// </summary>
+        void DrawExperimentalSection()
+        {
+            bool isSelected;
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.BeginHorizontal();
+            // Display the experimental features label in gray color
+            GUIStyle experimentalLabelStyle = new(GUI.skin.label) { normal = { textColor = Color.gray } };
+            GUIStyle labelStyle = Settings.shouldShowExperimentalFeatures ? GUI.skin.label : experimentalLabelStyle;
+            EditorGUILayout.LabelField(new GUIContent(messages[MessageKey.Experimental], messages[MessageKey.RevealExperimental]), labelStyle, GUILayout.Width(labelWidth));
+            isSelected = EditorGUILayout.Toggle(Settings.shouldShowExperimentalFeatures, GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+            if (Settings.shouldShowExperimentalFeatures != isSelected)
+            {
+                Settings.shouldShowExperimentalFeatures = isSelected;
+                shouldSaveSettings = true;
+            }
+            if (Settings.shouldShowExperimentalFeatures)
+            {
+            GUILayout.Space(smallVerticalSpacing);
+                GUILayout.BeginHorizontal();
+                GUIStyle experimentalStyle = new(GUI.skin.label) { fontStyle = FontStyle.Bold, normal = { textColor = Color.red } };
+                EditorGUILayout.LabelField(new GUIContent(messages[MessageKey.IncludeLibrary], messages[MessageKey.IncludeLibraryTooltip]), experimentalStyle, GUILayout.Width(labelWidth));
+                isSelected = EditorGUILayout.Toggle(Settings.shouldIncludeLibrary, GUILayout.ExpandWidth(true));
+                GUILayout.EndHorizontal();
+                if (Settings.shouldIncludeLibrary != isSelected)
+                {
+                    Settings.shouldIncludeLibrary = isSelected;
+                    UpdateLibraryFolderExclusion();
+                    shouldSaveSettings = true;
+                }
+            }
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
         /// Creates the restore defaults button of the settings GUI.
         /// </summary>
         void DrawRestoreDefaultsButton()
         {
-            if (GUILayout.Button(messages["RESTORE_DEFAULTS"]))
+            if (GUILayout.Button(messages[MessageKey.RestoreDefaults]))
             {
                 Settings.RestoreDefaults();
                 shouldSaveSettings = true;
@@ -225,8 +298,12 @@ namespace ExportProjectToZip
         void DrawAboutSection()
         {
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label(messages["ABOUT"], EditorStyles.wordWrappedLabel);
-            if (GUILayout.Button(messages["MORE_INFO"] + messages["REPOSITORY_LINK"], EditorStyles.linkLabel)) Application.OpenURL(messages["REPOSITORY_LINK"]);
+            GUILayout.BeginHorizontal();
+            GUIStyle infoLabelStyle = new GUIStyle(EditorStyles.label) { padding = new RectOffset(4, 0, 2, 0) };
+            GUILayout.Label(messages[MessageKey.MoreInfo], infoLabelStyle, GUILayout.ExpandWidth(false));
+            if (GUILayout.Button(messages[MessageKey.RepositoryLink], EditorStyles.linkLabel, GUILayout.ExpandWidth(true)))
+                Application.OpenURL(messages[MessageKey.RepositoryLink]);
+            GUILayout.EndHorizontal();
             GUILayout.EndVertical();
         }
 
@@ -302,7 +379,27 @@ namespace ExportProjectToZip
                 if (!Settings.foldersToExclude.Contains("Builds")) Settings.foldersToExclude.Add("Builds");
                 Settings.foldersToExclude.Sort();
             }
-            if(shouldSaveNow) SaveSettings();
+            if (shouldSaveNow) SaveSettings();
+        }
+
+        /// <summary>
+        /// Updates the exclusion of the Library folder based on shouldIncludeLibrary.
+        /// </summary>
+        /// <param name="shouldSaveNow">Whether the settings should be saved immediately.</param>
+        public static void UpdateLibraryFolderExclusion(bool shouldSaveNow = false)
+        {
+            if (Settings.shouldIncludeLibrary)
+            {
+                bool isOK = EditorUtility.DisplayDialog(messages[MessageKey.IncludeLibrary], messages[MessageKey.IncludeLibraryWarning], "OK", "Cancel");
+                if (isOK) Settings.foldersToExclude.Remove("Library");
+                else Settings.shouldIncludeLibrary = false; // Revert the change if the user cancels
+            }
+            else
+            {
+                if (!Settings.foldersToExclude.Contains("Library")) Settings.foldersToExclude.Add("Library");
+                Settings.foldersToExclude.Sort();
+            }
+            if (shouldSaveNow) SaveSettings();
         }
 
         /// <summary>
@@ -339,13 +436,27 @@ namespace ExportProjectToZip
 
             if (forbiddenFolders.Contains(folder))
             {
-                EditorUtility.DisplayDialog(messages["INVALID_FOLDER_TITLE"], string.Format(messages["INVALID_FOLDER"], folder), "OK");
+                EditorUtility.DisplayDialog(messages[MessageKey.InvalidFolderTitle], string.Format(messages[MessageKey.InvalidFolder], folder), "OK");
                 return string.Empty; // Forbidden folder
             }
 
             foreach (char c in folder)
             {
-                if (!char.IsLetterOrDigit(c) && c != '_' && c != '-') return string.Empty; // Block invalid characters
+                if (!char.IsLetterOrDigit(c) && c != '_' && c != '-' && c != '.'&& c != ' ') return string.Empty; // Allowed characters: letters, digits, underscore, hyphen, dot, space.
+            }
+
+            if (folder == ".") return string.Empty; // Block if the folder is just a dot
+
+            // Block if the folder name contains consecutive dots:
+            bool isPreviousDot = false;
+            foreach(char c in folder)
+            {
+                if (c == '.')
+                {
+                    if (isPreviousDot) return string.Empty; // Block consecutive dots
+                    isPreviousDot = true;
+                }
+                else isPreviousDot = false; // Reset if a non-dot character is found
             }
 
             return folder;
