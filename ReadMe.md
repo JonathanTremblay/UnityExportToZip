@@ -1,5 +1,8 @@
 # Unity ExportProjectToZip
 
+![Unity Version](https://img.shields.io/badge/unity-2021.3.16%2B-000000.svg?style=flat-square&logo=unity)
+![License](https://img.shields.io/badge/license-CC0-green.svg?style=flat-square)
+
 This Unity Editor tool lets you easily export an entire project to a zip file directly from the File menu.
 
 ## Table of Contents
@@ -40,8 +43,9 @@ That's it!
 
 ## Compatibility
 
-Tested on Mac and Windows with Unity versions ranging from 2021.3.16 to 6.1.
-Projects larger than 8 GB were compressed successfully.
+* Tested with Unity versions ranging from 2021.3.16 to 6.3.
+* Compatible with both Mac and Windows.
+* Projects larger than 8 GB were compressed successfully.
 
 ## Known Issues
 
@@ -60,11 +64,13 @@ This tool simplifies the transfer and submission of Unity projects, making it ea
 Teacher, Cegep de Saint-Jerome  
 jtrembla@cstj.qc.ca
 
-Project Repository: https://github.com/JonathanTremblay/UnityExportToZip  
-Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-project-to-zip-243983
+Project Repository: [https://github.com/JonathanTremblay/UnityExportToZip](https://github.com/JonathanTremblay/UnityExportToZip)  
+Unity Asset Store: [https://assetstore.unity.com/packages/tools/utilities/export-project-to-zip-243983](https://assetstore.unity.com/packages/tools/utilities/export-project-to-zip-243983)
 
 ## Version History
 
+* 1.1.5
+    * Fixed potential file access errors when loading Project Settings.
 * 1.1.4
     * Improved execution speed.
     * Fixed an issue with Project Settings for folder names with a dot.
@@ -98,4 +104,4 @@ Unity Asset Store: https://assetstore.unity.com/packages/tools/utilities/export-
 ## License
 
 This tool is available for distribution and modification under the CC0 License, which allows for free use and modification.  
-https://creativecommons.org/share-your-work/public-domain/cc0/
+[https://creativecommons.org/share-your-work/public-domain/cc0/](https://creativecommons.org/share-your-work/public-domain/cc0/)

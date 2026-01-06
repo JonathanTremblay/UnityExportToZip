@@ -1,11 +1,11 @@
 #if UNITY_EDITOR
-using UnityEngine;
-using UnityEditor;
-using System.IO;
-using System.Collections.Generic;
-
 namespace ExportProjectToZip
 {
+    using UnityEngine;
+    using UnityEditor;
+    using System.IO;
+    using System.Collections.Generic;
+
     /// <summary>
     /// Settings provider for the ExportProjectToZip settings 
     /// (accessible from Edit > Project Settings > Export Project to Zip)
@@ -13,7 +13,7 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZipSettingsProvider : SettingsProvider
     {
-		enum MessageKey { RepositoryLink, RenameZip, RenameZipTooltip, IncludeBuilds, IncludeBuildsTooltip, Experimental, RevealExperimental, IncludeLibrary, IncludeLibraryTooltip, IncludeLibraryWarning, FoldersToExclude, ExtensionsToExclude, RestoreDefaults, MoreInfo, InvalidFolderTitle, InvalidFolder, Mandatory }
+        enum MessageKey { RepositoryLink, RenameZip, RenameZipTooltip, IncludeBuilds, IncludeBuildsTooltip, Experimental, RevealExperimental, IncludeLibrary, IncludeLibraryTooltip, IncludeLibraryWarning, FoldersToExclude, ExtensionsToExclude, RestoreDefaults, MoreInfo, InvalidFolderTitle, InvalidFolder, Mandatory }
         static readonly Dictionary<MessageKey, string> messages = new()
         {
             { MessageKey.RepositoryLink, "https://github.com/JonathanTremblay/UnityExportToZip" },
@@ -64,7 +64,7 @@ namespace ExportProjectToZip
         /// <param name="scope">The scope of the settings provider.</param>
         public ExportProjectToZipSettingsProvider(string path, SettingsScope scope) : base(path, scope)
         {
-            LoadSettings();
+            // LoadSettings(); // Settings are now loaded on demand to avoid file access issues
         }
 
         /// <summary>
@@ -264,7 +264,7 @@ namespace ExportProjectToZip
             }
             if (Settings.shouldShowExperimentalFeatures)
             {
-            GUILayout.Space(smallVerticalSpacing);
+                GUILayout.Space(smallVerticalSpacing);
                 GUILayout.BeginHorizontal();
                 GUIStyle experimentalStyle = new(GUI.skin.label) { fontStyle = FontStyle.Bold, normal = { textColor = Color.red } };
                 EditorGUILayout.LabelField(new GUIContent(messages[MessageKey.IncludeLibrary], messages[MessageKey.IncludeLibraryTooltip]), experimentalStyle, GUILayout.Width(labelWidth));
@@ -358,8 +358,16 @@ namespace ExportProjectToZip
         [SettingsProvider]
         static public SettingsProvider CreateSettingsProvider()
         {
-            var provider = new ExportProjectToZipSettingsProvider("Project/Export Project to Zip", SettingsScope.Project);
-            return provider;
+            try
+            {
+                var provider = new ExportProjectToZipSettingsProvider("Project/Export Project to Zip", SettingsScope.Project);
+                return provider;
+            }
+            catch
+            {
+                // In case of error, do not create the settings provider (may be caused by file access issues)
+                return null;
+            }
         }
 
         /// <summary>
@@ -442,14 +450,14 @@ namespace ExportProjectToZip
 
             foreach (char c in folder)
             {
-                if (!char.IsLetterOrDigit(c) && c != '_' && c != '-' && c != '.'&& c != ' ') return string.Empty; // Allowed characters: letters, digits, underscore, hyphen, dot, space.
+                if (!char.IsLetterOrDigit(c) && c != '_' && c != '-' && c != '.' && c != ' ') return string.Empty; // Allowed characters: letters, digits, underscore, hyphen, dot, space.
             }
 
             if (folder == ".") return string.Empty; // Block if the folder is just a dot
 
             // Block if the folder name contains consecutive dots:
             bool isPreviousDot = false;
-            foreach(char c in folder)
+            foreach (char c in folder)
             {
                 if (c == '.')
                 {

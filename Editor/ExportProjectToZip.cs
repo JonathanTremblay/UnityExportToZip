@@ -1,16 +1,16 @@
 #if UNITY_EDITOR
-using UnityEngine;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using System;
-using System.IO;
-using System.IO.Compression;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-
 namespace ExportProjectToZip
 {
+    using UnityEngine;
+    using UnityEditor;
+    using UnityEditor.SceneManagement;
+    using System;
+    using System.IO;
+    using System.IO.Compression;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+
     /// <summary>
     /// ExportProjectToZip allows you to easily export an entire Unity project to a Zip file.
     /// It will exclude unnecessary files from the Library folder, preserving only:
@@ -32,7 +32,7 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip
     {
-        static readonly string currentVersion = "Version 1.1.4 (2025-08)";
+        static readonly string currentVersion = "Version 1.1.5 (2026-01)";
 
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
@@ -64,7 +64,7 @@ namespace ExportProjectToZip
             }
 
             //Clearing unzippableFiles list:
-            unzippableLibraryFiles = new ();
+            unzippableLibraryFiles = new();
 
             // Choosing zip name and path
             zipName = projectName + ".zip";
@@ -304,7 +304,7 @@ namespace ExportProjectToZip
             else if (lastRefreshWorkaroundTime.AddMilliseconds(200) < DateTime.Now)
             {
                 Thread.Sleep(1); //short pause
-                lastRefreshWorkaroundTime = DateTime.Now; 
+                lastRefreshWorkaroundTime = DateTime.Now;
             }
         }
 

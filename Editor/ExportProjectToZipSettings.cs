@@ -1,9 +1,8 @@
 #if UNITY_EDITOR
-using System.Collections.Generic;
-using UnityEngine;
-
 namespace ExportProjectToZip
 {
+    using System.Collections.Generic;
+
     /// <summary>
     /// Settings for the ExportProjectToZip package.
     /// </summary>
@@ -14,8 +13,8 @@ namespace ExportProjectToZip
         const bool shouldIncludeLibraryDefault = false;
         const bool shouldShowExperimentalFeaturesDefault = false;
         const bool shouldNameRootLevelFolderWithZipNameDefault = true;
-        static readonly List<string> foldersToExcludeDefault = new() { ".git", ".vs", ".vscode", "Build", "Builds", "Library", "Logs", "obj", "Obj", "UserSettings", "Temp"};
-        static readonly List<string> topLevelExtensionsToExcludeDefault = new() { ".gitignore", ".sln", ".csproj", ".zip"};
+        static readonly List<string> foldersToExcludeDefault = new() { ".git", ".vs", ".vscode", "Build", "Builds", "Library", "Logs", "obj", "Obj", "UserSettings", "Temp" };
+        static readonly List<string> topLevelExtensionsToExcludeDefault = new() { ".gitignore", ".sln", ".csproj", ".zip" };
         public bool shouldIncludeBuilds = shouldIncludeBuildsDefault;
         public bool shouldIncludeLibrary = shouldIncludeLibraryDefault;
         public bool shouldShowExperimentalFeatures = shouldShowExperimentalFeaturesDefault;
