@@ -1,7 +1,7 @@
 {
   "name": "ca.tim-cstj.export-project-to-zip",
   "displayName": "Export Project to Zip",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "unity": "2021.3",
   "description": "This Unity Editor tool lets you easily export an entire project to a zip file directly from the File menu.",
   "documentationUrl": "https://github.com/JonathanTremblay/UnityExportToZip#readme",
@@ -22,7 +22,7 @@
   "author": {
     "name": "Jonathan Tremblay",
     "email": "jtrembla@cstj.qc.ca",
-    "url": "github.com/JonathanTremblay"
+    "url": "https://github.com/JonathanTremblay"
   },
   "unityRelease": "16f1"
 }

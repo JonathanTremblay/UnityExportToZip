@@ -4,6 +4,7 @@ namespace ExportProjectToZip
     using UnityEngine;
     using UnityEditor;
     using UnityEditor.SceneManagement;
+    using UnityEditor.PackageManager;
     using System;
     using System.IO;
     using System.IO.Compression;
@@ -19,7 +20,7 @@ namespace ExportProjectToZip
     /// Note that other Library files can be recreated by Unity.
     ///
     /// It will also exclude the following folders: .git, .vs, .vscode, Build, Builds, Logs, obj, Obj, UserSettings, Temp.
-    /// Additionally, it will exclude all .gitignore, .csproj, .sln and .zip files at the top level of the project.
+    /// Additionally, it will exclude all .gitignore, .csproj, .sln, .slnx and .zip files at the top level of the project.
     /// Exclusions can be changed in Project Settings.
     ///
     /// The scripts must be placed in an Editor folder (inside the Assets or Packages folder).
@@ -32,12 +33,17 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip
     {
-        static readonly string currentVersion = "Version 1.1.5 (2026-01)";
-
+        internal const string VERSION = "Version 1.1.6 (2026-03)";
+#if UNITY_6000_3_OR_NEWER
+        const string EMOJI_BOX = "📦 ";
+#else
+        const string EMOJI_BOX = "";
+#endif
         static string projectName; //The Unity project name, based on the name of the root folder of the project. Will be used within the zip archive.
         static string projectPath; //The path to the root folder of the project.
         static string zipName; //The name of the zip file to create or replace (with the extension).
         static string zipNameWithoutExt; //The name of the zip file (without the extension).
+        static string folderName; //The name of the root folder inside the zip archive.
         static string zipFullPath; //The full path of the zip file to create (with the filename and the extension).
         static string oldZipFullPath; //The temporary full path of the old zip file to replace.
         static List<string> filesToZip; //The list of all the files to zip in the project folder.
@@ -59,7 +65,7 @@ namespace ExportProjectToZip
             shouldContinue = CheckForUnsavedFiles();
             if (!shouldContinue)
             {
-                ShowError("The project has not been exported.");
+                ShowError("The project has not been exported.", false); // Only in the console, because the user has been warned in a previous dialog.
                 return;
             }
 
@@ -69,6 +75,8 @@ namespace ExportProjectToZip
             // Choosing zip name and path
             zipName = projectName + ".zip";
             zipFullPath = FixLongPath(EditorUtility.SaveFilePanel("Export project to zip", projectPath, zipName, "zip"));
+
+            bool useProductName = IsAltKeyHeld();
             if (string.IsNullOrEmpty(zipFullPath))
             {
                 // User has pressed the cancel button in the SaveFilePanel
@@ -77,11 +85,21 @@ namespace ExportProjectToZip
             zipName = Path.GetFileName(zipFullPath);
             zipNameWithoutExt = Path.GetFileNameWithoutExtension(zipFullPath);
 
+            if (useProductName && !string.IsNullOrWhiteSpace(PlayerSettings.productName))
+            {
+                folderName = PlayerSettings.productName;
+                Debug.Log($"{EMOJI_BOX}<b>ALT ROOT NAMING!</b> {EMOJI_BOX}The root folder in the Zip file will be named : \"{folderName}\" (Product Name from Player Settings).");
+            }
+            else
+            {
+                folderName = ExportProjectToZipSettingsProvider.Settings.shouldNameRootLevelFolderWithZipName ? zipNameWithoutExt : projectName;
+            }
+
             // Temporarily renaming existing zip file
             shouldContinue = RenameExistingZip();
             if (!shouldContinue)
             {
-                ShowError("The project has not been exported.");
+                ShowError("The project has not been exported.", false); // Only in the console, because the user has been warned in a previous dialog.
                 return;
             }
 
@@ -93,14 +111,14 @@ namespace ExportProjectToZip
             string[] topLevelFiles = Directory.GetFiles(projectPath, "*.*", SearchOption.TopDirectoryOnly);
             foreach (string file in topLevelFiles)
             {
-                if (ExportProjectToZipSettingsProvider.Settings.topLevelExtensionsToExclude.Contains(Path.GetExtension(file)))
+                if (ExportProjectToZipSettingsProvider.Settings.topLevelExtensionsToExclude.Contains(Path.GetExtension(file).ToLowerInvariant()))
                 {
                     exceptionList.Add(FixLongPath(file));
                 }
             }
             filesToZip = Directory.EnumerateFiles(projectPath, "*.*", SearchOption.AllDirectories)
-                .Where(d => exceptionList.All(e => !d.StartsWith(e)))
                 .Select(FixLongPath)
+                .Where(d => exceptionList.All(e => !d.StartsWith(e, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
             string lastSceneFullPath = FixLongPath(Path.Combine(projectPath, "Library", "LastSceneManagerSetup.txt"));
@@ -124,7 +142,7 @@ namespace ExportProjectToZip
 
             if (hasBeenCompleted)
             {
-                string message = $"<b>SUCCESS!</b> The project was successfully exported (the Zip contains {filesToZip.Count} files). {FixPathForMac(zipFullPath)} \n** Export Project to Zip is free and open source. For updates and feedback, visit https://github.com/JonathanTremblay/UnityExportToZip. **\n** {currentVersion} **";
+                string message = $"{EMOJI_BOX}<b>SUCCESS!</b> {EMOJI_BOX}The project was successfully exported (the Zip contains {filesToZip.Count} files). <size=10>{FixPathForMac(zipFullPath)} \n ** Export Project to Zip is free and open source – For updates and feedback, visit <a href=\"https://github.com/JonathanTremblay/UnityExportToZip\">https://github.com/JonathanTremblay/UnityExportToZip</a> – {VERSION} **</size>";
                 int unzippableCount = unzippableLibraryFiles.Count;
                 if (unzippableCount > 0) message += $"\n<b>EXPERIMENTAL!</b> The following {unzippableCount} Library files were skipped:\n" + string.Join("\n", unzippableLibraryFiles);
                 Debug.Log(message);
@@ -193,16 +211,22 @@ namespace ExportProjectToZip
         /// <returns>Returns true if any assets in the project have unsaved changes, or false if all assets are saved.</returns>
         static bool CheckIfProjectNeedsToBeSaved()
         {
-            string[] allAssetsPaths = AssetDatabase.GetAllAssetPaths();
-            foreach (string assetPath in allAssetsPaths) //loop on each asset
+            // We iterate over loaded objects instead of all assets on disk to improve performance:
+            UnityEngine.Object[] allLoadedObjects = Resources.FindObjectsOfTypeAll<UnityEngine.Object>();
+            foreach (UnityEngine.Object obj in allLoadedObjects)
             {
-                Type assetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
-                bool isValidAssetType = (assetType != null) && (assetType != typeof(Shader)) && (assetType != typeof(UnityEngine.CustomRenderTexture));
-                if (assetPath.StartsWith("Assets") && isValidAssetType) //checks only in the Assets folder, excludes shaders and custom render textures
+                if (EditorUtility.IsDirty(obj) && AssetDatabase.Contains(obj))
                 {
-                    if (EditorUtility.IsDirty(AssetDatabase.LoadAssetAtPath(assetPath, typeof(object))))
+                    if (obj is Shader or CustomRenderTexture) continue; //skip shaders and custom render textures because they auto-update
+                    string assetPath = AssetDatabase.GetAssetPath(obj);
+
+                    if (assetPath.StartsWith("Assets") || assetPath.StartsWith("ProjectSettings")) return true;
+
+                    if (assetPath.StartsWith("Packages"))
                     {
-                        return true; //this asset needs to be saved, no need to check other assets
+                        var packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssetPath(assetPath);
+                        // Needs saving only if the package is Embedded or Local (writable):
+                        if (packageInfo?.source is PackageSource.Embedded or PackageSource.Local) return true;
                     }
                 }
             }
@@ -239,7 +263,7 @@ namespace ExportProjectToZip
         /// <returns>True if all files were added to the zip file, false if an error occured or if the operation has been cancelled by the user.</returns>
         static bool AddFilesToZip(ZipArchive zip, List<string> fileList)
         {
-            int fileCount = fileList.Count();
+            int fileCount = fileList.Count;
             string details = "";
             for (int i = 0; i < fileCount; i++)
             {
@@ -257,7 +281,6 @@ namespace ExportProjectToZip
                 }
                 try
                 {
-                    string folderName = (ExportProjectToZipSettingsProvider.Settings.shouldNameRootLevelFolderWithZipName) ? zipNameWithoutExt : projectName;
                     string combinedPath = Path.Combine(folderName, fileRelativePath);
                     combinedPath = FixPathForMac(combinedPath);
                     zip.CreateEntryFromFile(file, combinedPath);
@@ -271,14 +294,16 @@ namespace ExportProjectToZip
                     }
                     else
                     {
+                        EditorUtility.ClearProgressBar();
                         ShowError($"An error occurred while adding the file to the zip archive: {exception.Message}\nThe project was not exported.");
                         return false;
                     }
                 }
                 catch (Exception exception)
                 {
+                    EditorUtility.ClearProgressBar();
                     ShowError($"An unknown error occurred: {exception.Message}\nThe project was not exported.");
-                    return false;
+                    return false; 
                 }
             }
             EditorUtility.ClearProgressBar();
@@ -455,10 +480,11 @@ namespace ExportProjectToZip
         /// Displays an error message to the user.
         /// </summary>
         /// <param name="message">The message to display to the user.</param>
-        static void ShowError(string message)
+        /// <param name="shouldDialog">Whether to show a dialog with the error message. The message will always be logged in the console.</param>
+        static void ShowError(string message, bool shouldDialog = true)
         {
-            EditorUtility.DisplayDialog("FAILURE", "ERROR!\n" + message, "Ok");
-            Debug.Log("<b>ERROR!</b> \n" + message);
+            if (shouldDialog) EditorUtility.DisplayDialog("FAILURE", "ERROR!\n" + message, "Ok");
+            Debug.LogWarning($"{EMOJI_BOX}<b>ERROR!</b> {EMOJI_BOX}\n" + message);
         }
 
         /// <summary>
@@ -477,6 +503,42 @@ namespace ExportProjectToZip
             }
             return path;
         }
+
+#if UNITY_EDITOR_WIN
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern short GetAsyncKeyState(int vKey);
+        const int VK_MENU = 0x12; // Alt key
+        /// <summary>
+        /// Checks if the Alt key is currently held down (Windows only).
+        /// </summary>
+        /// <returns>True if the Alt key is held down, false otherwise.</returns>
+        static bool IsAltKeyHeld() => (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+#elif UNITY_EDITOR_OSX
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_getClass")]
+        static extern IntPtr objc_getClass(string className);
+
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libobjc.dylib", EntryPoint = "sel_registerName")]
+        static extern IntPtr sel_registerName(string selectorName);
+
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+        static extern ulong objc_msgSend_ulong(IntPtr receiver, IntPtr selector);
+
+        const ulong NSEventModifierFlagOption = 1 << 19; // Option (Alt) key
+
+        /// <summary>
+        /// Checks if the Option (Alt) key is currently held down (macOS only).
+        /// </summary>
+        /// <returns>True if the Option key is held down, false otherwise.</returns>
+        static bool IsAltKeyHeld()
+        {
+            IntPtr nsEventClass = objc_getClass("NSEvent");
+            IntPtr modifierFlagsSel = sel_registerName("modifierFlags");
+            ulong flags = objc_msgSend_ulong(nsEventClass, modifierFlagsSel);
+            return (flags & NSEventModifierFlagOption) != 0;
+        }
+#else
+        static bool IsAltKeyHeld() => false;
+#endif
     }
 }
 #endif

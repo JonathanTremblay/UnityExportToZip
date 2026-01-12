@@ -37,13 +37,13 @@ That's it!
 * No additional software needed.
 * Adds only the required files to the archive:
   * Excludes unnecessary files from the Library folder. Only two files from the Library folder are preserved: `LastSceneManagerSetup.txt` (which stores the last accessed scene) and `EditorUserBuildSettings.asset` (which stores the build settings). Note that other Library files can be recreated by Unity.
-  * Additionally, it excludes the following folders: `.git`, `.vs`, `.vscode`, `Build`, `Builds`, `Logs`, `obj`, `Obj`, `UserSettings`, `Temp`.
-  * It also excludes all `.gitignore`, `.csproj`, `.sln`, and `.zip` files at the top level of the project.
+  * Additionally, it excludes the following folders: `.git`, `.vs`, `.vscode`, `Build`, `Builds`, `Logs`, `Obj`, `UserSettings`, `Temp`.
+  * It also excludes all `.gitignore`, `.csproj`, `.sln`, `.slnx`, and `.zip` files at the top level of the project.
   * Exclusions can be changed in Project Settings.
 
 ## Compatibility
 
-* Tested with Unity versions ranging from 2021.3.16 to 6.3.
+* Tested with Unity versions ranging from 2021.3.16 to 6000.5.0a.
 * Compatible with both Mac and Windows.
 * Projects larger than 8 GB were compressed successfully.
 
@@ -69,6 +69,12 @@ Unity Asset Store: [https://assetstore.unity.com/packages/tools/utilities/export
 
 ## Version History
 
+* 1.1.6
+    * Optimized unsaved file detection for better performance on large projects.
+    * Added .slnx to the default file extension exclusions.
+    * Improved Project Settings validation and feedback for exclusion management.
+    * Fixed folder and extension exclusions to be case-insensitive.
+    * Fixed the progress bar not being cleared when a compression error occurred.
 * 1.1.5
     * Fixed potential file access errors when loading Project Settings.
 * 1.1.4
