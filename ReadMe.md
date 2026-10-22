@@ -43,7 +43,7 @@ That's it!
 
 ## Compatibility
 
-* Tested with Unity versions ranging from 2021.3.16 to 6000.5.0a.
+* Tested with Unity versions ranging from 2021.3.45 to 6000.6.7.
 * Compatible with both Mac and Windows.
 * Projects larger than 8 GB were compressed successfully.
 
@@ -69,6 +69,8 @@ Unity Asset Store: [https://assetstore.unity.com/packages/tools/utilities/export
 
 ## Version History
 
+* 1.1.7
+    * Added subfolder exclusion support.
 * 1.1.6
     * Optimized unsaved file detection for better performance on large projects.
     * Added .slnx to the default file extension exclusions.

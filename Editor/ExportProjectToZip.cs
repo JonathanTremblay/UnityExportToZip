@@ -33,7 +33,7 @@ namespace ExportProjectToZip
     /// </summary>
     public class ExportProjectToZip
     {
-        internal const string VERSION = "Version 1.1.6 (2026-03)";
+        internal const string VERSION = "Version 1.1.7 (2026-10)";
 #if UNITY_6000_3_OR_NEWER
         const string EMOJI_BOX = "📦 ";
 #else
@@ -164,6 +164,7 @@ namespace ExportProjectToZip
         /// <returns>The full path to the folder with a trailing separator.</returns>
         static string GetFolderFullPath(string folderName)
         {
+            folderName = folderName.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
             string folderFullPath = Path.Combine(projectPath, folderName, "X"); //add a separator at the end to avoid matching a file starting with the same name
             folderFullPath = folderFullPath.Substring(0, folderFullPath.Length - 1); //remove last X but keep the separator
             return folderFullPath;

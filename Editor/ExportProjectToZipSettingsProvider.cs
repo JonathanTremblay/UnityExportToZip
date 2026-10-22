@@ -26,8 +26,8 @@ namespace ExportProjectToZip
             { MessageKey.IncludeLibrary, "Include Library Folder (EXPERIMENTAL)" },
             { MessageKey.IncludeLibraryTooltip, "Include the Library folder in the zip archive." },
             { MessageKey.IncludeLibraryWarning, "Warning! Including the Library folder is a beta feature. It is not recommended except for a very small project. \n\nReopening a zipped project will be faster, but zipping and unzipping will be slower. Also, the resulting zip file will be significantly larger. \n\nOn Windows, some files from the Library will be skipped. It works best on macOS, which does not lock any files in the Library folder." },
-            { MessageKey.FoldersToExclude, "Folders to Exclude (From Root Level)" },
-            { MessageKey.ExtensionsToExclude, "File Extensions to Exclude (From Root Level)" },
+            { MessageKey.FoldersToExclude, "Folders to Exclude (Root-Level Folders or Subfolder Paths Relative to Project Root)" },
+            { MessageKey.ExtensionsToExclude, "File Extensions to Exclude (Root-Level Files Only)" },
             { MessageKey.RestoreDefaults, "Restore Defaults" },
             { MessageKey.MoreInfo, "More info: " },
             { MessageKey.InvalidFolderTitle, "Invalid Folder Exclusion" },
@@ -493,31 +493,39 @@ namespace ExportProjectToZip
         {
             if (string.IsNullOrWhiteSpace(folder)) return string.Empty; // Block empty folder
 
-            folder = folder.Trim(); // Remove leading and trailing spaces
+            folder = folder.Trim().Replace('\\', '/'); // Trim and normalize folder separators
 
-            if (forbiddenFolders.Exists(f => f.Equals(folder, System.StringComparison.OrdinalIgnoreCase)))
+            string[] pathSegments = folder.Split('/');
+            if (pathSegments.Length == 0 || pathSegments[0].Length == 0) return string.Empty; // Block rooted paths
+
+            if (forbiddenFolders.Exists(f => f.Equals(pathSegments[0], System.StringComparison.OrdinalIgnoreCase)))
             {
                 EditorUtility.DisplayDialog(messages[MessageKey.InvalidFolderTitle], string.Format(messages[MessageKey.InvalidFolder], folder), "OK");
-                return string.Empty; // Forbidden folder
+                return string.Empty; // The folder is within a forbidden project folder
             }
 
-            foreach (char c in folder)
+            foreach (string pathSegment in pathSegments)
             {
-                if (!char.IsLetterOrDigit(c) && c != '_' && c != '-' && c != '.' && c != ' ') return string.Empty; // Allowed characters: letters, digits, underscore, hyphen, dot, space.
-            }
+                if (string.IsNullOrWhiteSpace(pathSegment)) return string.Empty; // Block empty path segments
 
-            if (folder == ".") return string.Empty; // Block if the folder is just a dot
-
-            // Block if the folder name contains consecutive dots:
-            bool isPreviousDot = false;
-            foreach (char c in folder)
-            {
-                if (c == '.')
+                foreach (char c in pathSegment)
                 {
-                    if (isPreviousDot) return string.Empty; // Block consecutive dots
-                    isPreviousDot = true;
+                    if (!char.IsLetterOrDigit(c) && c != '_' && c != '-' && c != '.' && c != ' ') return string.Empty; // Allowed characters: letters, digits, underscore, hyphen, dot, space.
                 }
-                else isPreviousDot = false; // Reset if a non-dot character is found
+
+                if (pathSegment == ".") return string.Empty; // Block current-directory segments
+
+                // Block if a folder name contains consecutive dots:
+                bool isPreviousDot = false;
+                foreach (char c in pathSegment)
+                {
+                    if (c == '.')
+                    {
+                        if (isPreviousDot) return string.Empty; // Block consecutive dots and parent-directory segments
+                        isPreviousDot = true;
+                    }
+                    else isPreviousDot = false; // Reset if a non-dot character is found
+                }
             }
 
             // Capitalize the first letter if applicable

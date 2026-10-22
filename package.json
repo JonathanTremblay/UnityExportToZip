@@ -1,7 +1,7 @@
 {
   "name": "ca.tim-cstj.export-project-to-zip",
   "displayName": "Export Project to Zip",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "unity": "2021.3",
   "description": "This Unity Editor tool lets you easily export an entire project to a zip file directly from the File menu.",
   "documentationUrl": "https://github.com/JonathanTremblay/UnityExportToZip#readme",
